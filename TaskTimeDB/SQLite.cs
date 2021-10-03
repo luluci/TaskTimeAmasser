@@ -113,7 +113,7 @@ namespace TaskTimeDB
             querys.AddLast(@"CREATE TABLE subtask_aliases(alias_id INTEGER PRIMARY KEY, name TEXT);");
             // work_timesテーブル作成
             var q = new StringBuilder();
-            q.Append(@"CREATE TABLE source_info(");
+            q.Append(@"CREATE TABLE source_infos(");
             q.Append(@"source_id INTEGER PRIMARY KEY");
             q.Append(@", ");
             q.Append(@"person_id INTEGER");
@@ -156,7 +156,7 @@ namespace TaskTimeDB
             q.Append(@", ");
             q.Append(@"FOREIGN KEY(subtask_alias_id) REFERENCES subtask_aliases(alias_id)");
             q.Append(@", ");
-            q.Append(@"FOREIGN KEY(source_id) REFERENCES source_info(source_id)");
+            q.Append(@"FOREIGN KEY(source_id) REFERENCES source_infos(source_id)");
             q.Append(@");");
             querys.AddLast(q.ToString());
             // クエリ実行
@@ -223,12 +223,15 @@ namespace TaskTimeDB
                 var personId = await QueryGetPersonId(trans, person);
                 // ログファイルが登録済みかチェック
                 var logUpdate = await QueryCheckSource(personId, log);
+                bool result;
                 switch (logUpdate)
                 {
                     case SourceCheck.Update:
                         break;
 
                     case SourceCheck.NewAdd:
+                        // ログ新規追加
+                        result = await LoadLogFileAdd(trans, personId, log);
                         break;
 
                     default:
@@ -271,7 +274,13 @@ namespace TaskTimeDB
                 {
                     var item = log.Get();
                     // SourceInfo登録
+                    var sourceId = await QuerySetSourceInfos(trans, personId, log);
                     // タスク登録
+                    var taskId = await QueryCheckTasks(trans, item);
+                    if (taskId == -1)
+                    {
+                        taskId = await QuerySetTasks(trans, item);
+                    }
                     // タスクAlias登録
                     // サブタスク登録
                     // サブタスクAlias登録
@@ -368,8 +377,8 @@ namespace TaskTimeDB
                 // 更新日時が同じか新しいログが登録済みなら何もしない
                 // 更新日時が古いか登録が無いとき、
                 var query = new StringBuilder();
-                query.Append(@"SELECT source_id FROM source_info");
-                query.Append($@" WHERE person_id = {person_id} AND name = '{log.FileName}' AND date >= {log.LastWriteTime.ToBinary()}");
+                query.Append(@"SELECT source_id, date FROM source_infos");
+                query.Append($@" WHERE person_id = {person_id} AND name = '{log.FileName}'");
                 query.Append(@";");
                 // クエリ実行
                 using (var command = conn.CreateCommand())
@@ -385,7 +394,7 @@ namespace TaskTimeDB
                             // 更新日時が同じか新しい場合は更新不要
                             // 更新日時が古い場合は更新する
                             // ここで1件もヒットしないならデータが無いので新規登録
-                            if ((int)reader["date"] >= log.LastWriteTime.ToBinary())
+                            if ((int)(long)reader["date"] >= log.LastWriteTime.ToBinary())
                             {
                                 result = SourceCheck.NoReq;
                             }
@@ -404,18 +413,74 @@ namespace TaskTimeDB
             }
         }
 
-        private async Task<bool> QuerySourceInfo(SqliteTransaction trans, LogReader log)
+        private async Task<int> QuerySetSourceInfos(SqliteTransaction trans, int person_id, LogReader log)
         {
             try
             {
-                // クエリ
+                // クエリ作成
                 var query = new StringBuilder();
-                query.AppendLine("SELECT person_id ");
-                //
+                query.Append($@"INSERT INTO source_infos (person_id, name, date)");
+                query.Append($@" VALUES ('{person_id}', '{log.FileName}', '{log.LastWriteTime.ToBinary()}')");
+                query.Append(@";");
+                // クエリ実行
                 using (var command = conn.CreateCommand())
                 {
                     command.Transaction = trans;
-                    return true;
+                    command.CommandText = query.ToString();
+                    command.ExecuteNonQuery();
+                    // last_insert_rowid() がsource_idになってるはず
+                    return await GetLastInsertRowId(trans);
+                }
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
+        private async Task<int> QueryCheckTasks(SqliteTransaction trans, LogType item)
+        {
+            try
+            {
+                // クエリ作成
+                var query = new StringBuilder();
+                query.Append($@"SELECT task_id FROM tasks");
+                query.Append($@" WHERE code = '{item.Code}' AND name = '{item.Name}'");
+                query.Append(@";");
+                // クエリ実行
+                // 登録チェック
+                using (var command = conn.CreateCommand())
+                {
+                    command.CommandText = query.ToString();
+                    if (trans != null) command.Transaction = trans;
+                    var id = await command.ExecuteScalarAsync();
+                    if (id != null) return (int)(long)(id);
+                    else return -1;
+                }
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
+        private async Task<int> QuerySetTasks(SqliteTransaction trans, LogType item)
+        {
+            try
+            {
+                // クエリ作成
+                var query = new StringBuilder();
+                query.Append($@"INSERT INTO tasks (code, name)");
+                query.Append($@" VALUES ('{item.Code}', '{item.Name}')");
+                query.Append(@";");
+                // クエリ実行
+                using (var command = conn.CreateCommand())
+                {
+                    command.Transaction = trans;
+                    command.CommandText = query.ToString();
+                    command.ExecuteNonQuery();
+                    // last_insert_rowid() がsource_idになってるはず
+                    return await GetLastInsertRowId(trans);
                 }
             }
             catch
