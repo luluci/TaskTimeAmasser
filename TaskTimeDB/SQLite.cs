@@ -107,10 +107,10 @@ namespace TaskTimeDB
             // クエリ作成
             var querys = new LinkedList<string>();
             querys.AddLast(@"CREATE TABLE persons(person_id INTEGER PRIMARY KEY, name TEXT);");
-            querys.AddLast(@"CREATE TABLE tasks(task_id INTEGER PRIMARY KEY, code TEXT, name TEXT);");
-            querys.AddLast(@"CREATE TABLE task_aliases(alias_id INTEGER PRIMARY KEY, name TEXT);");
-            querys.AddLast(@"CREATE TABLE subtasks(subtask_id INTEGER PRIMARY KEY, code TEXT);");
-            querys.AddLast(@"CREATE TABLE subtask_aliases(alias_id INTEGER PRIMARY KEY, name TEXT);");
+            querys.AddLast(@"CREATE TABLE tasks(task_id INTEGER PRIMARY KEY, code TEXT, name TEXT, UNIQUE(code, name));");
+            querys.AddLast(@"CREATE TABLE task_aliases(alias_id INTEGER PRIMARY KEY, name TEXT UNIQUE);");
+            querys.AddLast(@"CREATE TABLE subtasks(subtask_id INTEGER PRIMARY KEY, code TEXT UNIQUE);");
+            querys.AddLast(@"CREATE TABLE subtask_aliases(alias_id INTEGER PRIMARY KEY, name TEXT UNIQUE);");
             // work_timesテーブル作成
             var q = new StringBuilder();
             q.Append(@"CREATE TABLE source_infos(");
