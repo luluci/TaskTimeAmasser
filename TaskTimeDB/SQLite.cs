@@ -102,6 +102,9 @@ namespace TaskTimeDB
              *      subtask_id  int     foreign key
              *      subalias_id int     foreign key
              *      date        int
+             *      year        int
+             *      month       int
+             *      day         int
              *      time        int
              */
             // クエリ作成
@@ -121,6 +124,8 @@ namespace TaskTimeDB
             q.Append(@"name TEXT");
             q.Append(@", ");
             q.Append(@"date INTEGER");
+            q.Append(@", ");
+            q.Append(@"UNIQUE(name, date)");
             q.Append(@", ");
             q.Append(@"FOREIGN KEY(person_id) REFERENCES persons(person_id)");
             q.Append(@");");
@@ -143,6 +148,12 @@ namespace TaskTimeDB
             q.Append(@"source_id INTEGER");
             q.Append(@", ");
             q.Append(@"date INTEGER");
+            q.Append(@", ");
+            q.Append(@"year INTEGER");
+            q.Append(@", ");
+            q.Append(@"month INTEGER");
+            q.Append(@", ");
+            q.Append(@"day INTEGER");
             q.Append(@", ");
             q.Append(@"time INTEGER");
             q.Append(@", ");
@@ -213,7 +224,7 @@ namespace TaskTimeDB
             try
             {
                 // ログファイルを開く
-                var log = new LogReader{ Path = path };
+                var log = new LogReader { Path = path };
                 if (!log.Open())
                 {
                     return false;
@@ -222,24 +233,27 @@ namespace TaskTimeDB
                 // person_id取得
                 var personId = await QueryGetPersonId(trans, person);
                 // ログファイルが登録済みかチェック
-                var logUpdate = await QueryCheckSource(personId, log);
+                var (logUpdate, sourceId) = await QueryCheckSource(personId, log);
                 bool result;
                 switch (logUpdate)
                 {
                     case SourceCheck.Update:
+                        if (sourceId != -1)
+                        {
+                            result = await LoadLogFileUpdate(trans, personId, sourceId, log);
+                        }
                         break;
 
                     case SourceCheck.NewAdd:
+                        // SourceInfo登録
+                        sourceId = await QuerySetSourceInfos(trans, personId, log);
                         // ログ新規追加
-                        result = await LoadLogFileAdd(trans, personId, log);
+                        result = await LoadLogFileAdd(trans, personId, sourceId, log);
                         break;
 
                     default:
                         // NoReqは何もしない
                         break;
-                }
-                using (var command = conn.CreateCommand())
-                {
                 }
 
                 //foreach (var q in querys)
@@ -262,19 +276,35 @@ namespace TaskTimeDB
                 return false;
             }
         }
-        private async Task<bool> LoadLogFileAdd(SqliteTransaction trans, int personId, LogReader log)
+
+        private async Task<bool> LoadLogFileUpdate(SqliteTransaction trans, int personId, int sourceId, LogReader log)
+        {
+            try
+            {
+                bool result;
+                //
+                var row = await QueryUpdateSourceInfos(trans, sourceId, log);
+                // 前回ログ削除
+                var num = await QueryDeleteWorkTime(trans, sourceId);
+                // 今回ログ登録
+                result = await LoadLogFileAdd(trans, personId, sourceId, log);
+
+                return result;
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
+        private async Task<bool> LoadLogFileAdd(SqliteTransaction trans, int personId, int sourceId, LogReader log)
         {
             // ログファイルの新規登録
             try
             {
-                using (var command = conn.CreateCommand())
-                {
-                }
                 while (!log.EOF)
                 {
                     var item = log.Get();
-                    // SourceInfo登録
-                    var sourceId = await QuerySetSourceInfos(trans, personId, log);
                     // タスク登録
                     var taskId = await QueryCheckTasks(trans, item);
                     if (taskId == -1)
@@ -282,9 +312,25 @@ namespace TaskTimeDB
                         taskId = await QuerySetTasks(trans, item);
                     }
                     // タスクAlias登録
+                    var aliasId = await QueryCheckTaskAliases(trans, item);
+                    if (aliasId == -1)
+                    {
+                        aliasId = await QuerySetTaskAliases(trans, item);
+                    }
                     // サブタスク登録
+                    var subtaskId = await QueryCheckSubTasks(trans, item);
+                    if (subtaskId == -1)
+                    {
+                        subtaskId = await QuerySetSubTasks(trans, item);
+                    }
                     // サブタスクAlias登録
-                    // 
+                    var subtaskAliasId = await QueryCheckSubTaskAliases(trans, item);
+                    if (subtaskAliasId == -1)
+                    {
+                        subtaskAliasId = await QuerySetSubTaskAliases(trans, item);
+                    }
+                    // work_time登録
+                    var work_time_id = await QuerySetWorkTime(trans, item, log, personId, taskId, aliasId, subtaskId, subtaskAliasId, sourceId);
                 }
                 return true;
             }
@@ -368,8 +414,8 @@ namespace TaskTimeDB
             NewAdd,     // 新規登録
             Update      // 要更新
         }
-        
-        private async Task<SourceCheck> QueryCheckSource(int person_id, LogReader log)
+
+        private async Task<(SourceCheck, int)> QueryCheckSource(int person_id, LogReader log)
         {
             try
             {
@@ -384,9 +430,10 @@ namespace TaskTimeDB
                 using (var command = conn.CreateCommand())
                 {
                     command.CommandText = query.ToString();
-                    using (var reader = command.ExecuteReader())
+                    using (var reader = await command.ExecuteReaderAsync())
                     {
-                        var result = SourceCheck.NewAdd;
+                        var check = SourceCheck.NewAdd;
+                        var id = -1;
                         // 結果読み出し
                         // 1件しかない前提
                         while (reader.Read() == true)
@@ -394,17 +441,45 @@ namespace TaskTimeDB
                             // 更新日時が同じか新しい場合は更新不要
                             // 更新日時が古い場合は更新する
                             // ここで1件もヒットしないならデータが無いので新規登録
-                            if ((int)(long)reader["date"] >= log.LastWriteTime.ToBinary())
+                            var dbDate = log.Serial2DateTime((long)reader["date"]);
+                            if (log.LastWriteTime.CompareTo(dbDate) > 0)
                             {
-                                result = SourceCheck.NoReq;
+                                // LastWriteTimeの方が新しいので更新
+                                check = SourceCheck.Update;
+                                id = (int)(long)reader["source_id"];
                             }
                             else
                             {
-                                result = SourceCheck.Update;
+                                // DB日時と同じか古いので何もしない
+                                check = SourceCheck.NoReq;
                             }
                         }
-                        return result;
+                        return (check, id);
                     }
+                }
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
+        private async Task<int> QueryUpdateSourceInfos(SqliteTransaction trans, int sourceId, LogReader log)
+        {
+            try
+            {
+                // クエリ作成
+                var query = new StringBuilder();
+                query.Append($@"UPDATE source_infos");
+                query.Append($@" SET date = {log.LastWriteTime.ToBinary()}");
+                query.Append($@" WHERE source_id = {sourceId}");
+                query.Append(@";");
+                // クエリ実行
+                using (var command = conn.CreateCommand())
+                {
+                    command.Transaction = trans;
+                    command.CommandText = query.ToString();
+                    return await command.ExecuteNonQueryAsync();
                 }
             }
             catch
@@ -488,6 +563,213 @@ namespace TaskTimeDB
                 throw;
             }
         }
+
+        private async Task<int> QueryCheckTaskAliases(SqliteTransaction trans, LogType item)
+        {
+            try
+            {
+                // クエリ作成
+                var query = new StringBuilder();
+                query.Append($@"SELECT alias_id FROM task_aliases");
+                query.Append($@" WHERE name = '{item.Alias}'");
+                query.Append(@";");
+                // クエリ実行
+                // 登録チェック
+                using (var command = conn.CreateCommand())
+                {
+                    command.CommandText = query.ToString();
+                    if (trans != null) command.Transaction = trans;
+                    var id = await command.ExecuteScalarAsync();
+                    if (id != null) return (int)(long)(id);
+                    else return -1;
+                }
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
+        private async Task<int> QuerySetTaskAliases(SqliteTransaction trans, LogType item)
+        {
+            try
+            {
+                // クエリ作成
+                var query = new StringBuilder();
+                query.Append($@"INSERT INTO task_aliases (name)");
+                query.Append($@" VALUES ('{item.Alias}')");
+                query.Append(@";");
+                // クエリ実行
+                using (var command = conn.CreateCommand())
+                {
+                    command.Transaction = trans;
+                    command.CommandText = query.ToString();
+                    command.ExecuteNonQuery();
+                    // last_insert_rowid() がsource_idになってるはず
+                    return await GetLastInsertRowId(trans);
+                }
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
+        private async Task<int> QueryCheckSubTasks(SqliteTransaction trans, LogType item)
+        {
+            try
+            {
+                // クエリ作成
+                var query = new StringBuilder();
+                query.Append($@"SELECT subtask_id FROM subtasks");
+                query.Append($@" WHERE code = '{item.SubCode}'");
+                query.Append(@";");
+                // クエリ実行
+                // 登録チェック
+                using (var command = conn.CreateCommand())
+                {
+                    command.CommandText = query.ToString();
+                    if (trans != null) command.Transaction = trans;
+                    var id = await command.ExecuteScalarAsync();
+                    if (id != null) return (int)(long)(id);
+                    else return -1;
+                }
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
+        private async Task<int> QuerySetSubTasks(SqliteTransaction trans, LogType item)
+        {
+            try
+            {
+                // クエリ作成
+                var query = new StringBuilder();
+                query.Append($@"INSERT INTO subtasks (code)");
+                query.Append($@" VALUES ('{item.SubCode}')");
+                query.Append(@";");
+                // クエリ実行
+                using (var command = conn.CreateCommand())
+                {
+                    command.Transaction = trans;
+                    command.CommandText = query.ToString();
+                    command.ExecuteNonQuery();
+                    // last_insert_rowid() がsource_idになってるはず
+                    return await GetLastInsertRowId(trans);
+                }
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
+        private async Task<int> QueryCheckSubTaskAliases(SqliteTransaction trans, LogType item)
+        {
+            try
+            {
+                // クエリ作成
+                var query = new StringBuilder();
+                query.Append($@"SELECT alias_id FROM subtask_aliases");
+                query.Append($@" WHERE name = '{item.SubAlias}'");
+                query.Append(@";");
+                // クエリ実行
+                // 登録チェック
+                using (var command = conn.CreateCommand())
+                {
+                    command.CommandText = query.ToString();
+                    if (trans != null) command.Transaction = trans;
+                    var id = await command.ExecuteScalarAsync();
+                    if (id != null) return (int)(long)(id);
+                    else return -1;
+                }
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
+        private async Task<int> QuerySetSubTaskAliases(SqliteTransaction trans, LogType item)
+        {
+            try
+            {
+                // クエリ作成
+                var query = new StringBuilder();
+                query.Append($@"INSERT INTO subtask_aliases (name)");
+                query.Append($@" VALUES ('{item.SubAlias}')");
+                query.Append(@";");
+                // クエリ実行
+                using (var command = conn.CreateCommand())
+                {
+                    command.Transaction = trans;
+                    command.CommandText = query.ToString();
+                    command.ExecuteNonQuery();
+                    // last_insert_rowid() がsource_idになってるはず
+                    return await GetLastInsertRowId(trans);
+                }
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
+        private async Task<int> QuerySetWorkTime(SqliteTransaction trans, LogType item, LogReader log, int person_id, int task_id, int task_alias_id, int subtask_id, int subtask_alias_id, int source_id)
+        {
+            try
+            {
+                // WorkTimeの日時はファイル名依存とする
+                long date = log.FileDateTime.ToBinary();
+                var year = log.FileDateTime.Year;
+                var month = log.FileDateTime.Month;
+                var day = log.FileDateTime.Day;
+                // クエリ作成
+                var query = new StringBuilder();
+                query.Append($@"INSERT INTO work_times (person_id, task_id, task_alias_id, subtask_id, subtask_alias_id, source_id, date, year, month, day, time)");
+                query.Append($@" VALUES ('{person_id}', '{task_id}', '{task_alias_id}', '{subtask_id}', '{subtask_alias_id}', '{source_id}', '{date}', '{year}', '{month}', '{day}', '{item.Time}')");
+                query.Append(@";");
+                // クエリ実行
+                using (var command = conn.CreateCommand())
+                {
+                    command.Transaction = trans;
+                    command.CommandText = query.ToString();
+                    command.ExecuteNonQuery();
+                    // last_insert_rowid() がsource_idになってるはず
+                    return await GetLastInsertRowId(trans);
+                }
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
+        private async Task<int> QueryDeleteWorkTime(SqliteTransaction trans, int sourceId)
+        {
+            try
+            {
+                // クエリ作成
+                var query = new StringBuilder();
+                query.Append($@"DELETE FROM work_times");
+                query.Append($@" WHERE source_id = '{sourceId}'");
+                query.Append(@";");
+                // クエリ実行
+                // 登録チェック
+                using (var command = conn.CreateCommand())
+                {
+                    command.CommandText = query.ToString();
+                    if (trans != null) command.Transaction = trans;
+                    return await command.ExecuteNonQueryAsync();
+                }
+            }
+            catch
+            {
+                throw;
+            }
+        }
     }
 
     class LogType
@@ -507,7 +789,12 @@ namespace TaskTimeDB
         private StreamReader reader;
         private string buff;
         public DateTime LastWriteTime { get; set; }
+        public long LastWriteTimeSerial
+        {
+            get { return LastWriteTime.ToBinary(); }
+        }
         public string FileName { get; set; }
+        public DateTime FileDateTime { get; set; }
 
         public LogReader()
         {
@@ -526,10 +813,38 @@ namespace TaskTimeDB
         {
             if (File.Exists(Path))
             {
+                GetFileDateTime();
                 var fi = new FileInfo(Path);
                 FileName = fi.Name;
                 LastWriteTime = fi.LastWriteTime;
                 reader = new StreamReader(Path);
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        private bool GetFileDateTime()
+        {
+            var match = Util.RegexFileName.Match(Path);
+            if (match.Success)
+            {
+                int year, month, day;
+                try
+                {
+                    year = int.Parse(match.Groups[1].ToString());
+                    month = int.Parse(match.Groups[2].ToString());
+                    day = int.Parse(match.Groups[3].ToString());
+                }
+                catch
+                {
+                    year = 0;
+                    month = 0;
+                    day = 0;
+                }
+                FileDateTime = new DateTime(year, month, day);
                 return true;
             }
             else
@@ -582,6 +897,11 @@ namespace TaskTimeDB
         public bool EOF
         {
             get { return reader.EndOfStream; }
+        }
+
+        public DateTime Serial2DateTime(long serial)
+        {
+            return DateTime.FromBinary(serial);
         }
     }
 }

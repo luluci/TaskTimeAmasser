@@ -13,5 +13,7 @@ namespace TaskTimeDB
 
         public static readonly string reWord = @"[\w\+\-\.\@\:\+\*\(\)_ !\?&@・（）、。,/]+";
         public static Regex RegexLog = new Regex($@"^({reWord})\t+({reWord})\t+({reWord})\t+({reWord})\t+({reWord})\t+({reWord})\t+(\d+)$", RegexOptions.Compiled);
+
+        public static readonly Regex RegexFileName = new Regex(@".*log\.(\d{4})(\d{2})(\d{2})\.txt$", RegexOptions.Compiled);
     }
 }
