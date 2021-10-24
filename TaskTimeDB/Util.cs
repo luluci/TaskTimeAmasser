@@ -11,8 +11,9 @@ namespace TaskTimeDB
     {
         static public string rootPath = System.IO.Path.GetDirectoryName(System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName);
 
-        public static readonly string reWord = @"[\w\+\-\.\@\:\+\*\(\)_ !\?&@・（）、。,/]+";
-        public static Regex RegexLog = new Regex($@"^({reWord})\t+({reWord})\t+({reWord})\t+({reWord})\t+({reWord})\t+({reWord})\t+(\d+)$", RegexOptions.Compiled);
+        //public static readonly string reWord = @"[\w\+\-\.\@\:\+\*\(\)_ !\?&@・（）、。,/]+";
+        public static readonly string reWord = @"[^\t]+";
+        public static Regex RegexLog = new Regex($@"^({reWord})\t+({reWord})\t+({reWord})\t+({reWord})\t+({reWord})\t+({reWord})\t+({reWord})\t+(\d+)$", RegexOptions.Compiled);
 
         public static readonly Regex RegexFileName = new Regex(@".*log\.(\d{4})(\d{2})(\d{2})\.txt$", RegexOptions.Compiled);
     }

@@ -95,17 +95,35 @@ namespace TaskTimeDB
              *      alias_id    int     PRIMARY
              *      name        string
              *  
+             *  items
+             *      item_id     int     PRIMARY
+             *      name        string
+             *  
+             *  item_aliases
+             *      alias_id    int     PRIMARY
+             *      name        string
+             *  
+             *  source_infos
+             *      source_id         int     PRIMARY
+             *      person_id         int     foreign key
+             *      name              string
+             *      date              int
+             *  
              *  work_times
-             *      work_id     int     PRIMARY
-             *      task_id     int     foreign key
-             *      alias_id    int     foreign key
-             *      subtask_id  int     foreign key
-             *      subalias_id int     foreign key
-             *      date        int
-             *      year        int
-             *      month       int
-             *      day         int
-             *      time        int
+             *      work_id           int     PRIMARY
+             *      person_id         int     foreign key
+             *      task_id           int     foreign key
+             *      task_alias_id     int     foreign key
+             *      subtask_id        int     foreign key
+             *      subtask_alias_id  int     foreign key
+             *      item_id           int     foreign key
+             *      item_alias_id     int     foreign key
+             *      source_id         int     foreign key
+             *      date              int
+             *      year              int
+             *      month             int
+             *      day               int
+             *      time              int
              */
             // クエリ作成
             var querys = new LinkedList<string>();
@@ -114,7 +132,9 @@ namespace TaskTimeDB
             querys.AddLast(@"CREATE TABLE task_aliases(alias_id INTEGER PRIMARY KEY, name TEXT UNIQUE);");
             querys.AddLast(@"CREATE TABLE subtasks(subtask_id INTEGER PRIMARY KEY, code TEXT UNIQUE);");
             querys.AddLast(@"CREATE TABLE subtask_aliases(alias_id INTEGER PRIMARY KEY, name TEXT UNIQUE);");
-            // work_timesテーブル作成
+            querys.AddLast(@"CREATE TABLE items(item_id INTEGER PRIMARY KEY, name TEXT UNIQUE);");
+            querys.AddLast(@"CREATE TABLE item_aliases(alias_id INTEGER PRIMARY KEY, name TEXT UNIQUE);");
+            // source_infosテーブル作成
             var q = new StringBuilder();
             q.Append(@"CREATE TABLE source_infos(");
             q.Append(@"source_id INTEGER PRIMARY KEY");
@@ -145,6 +165,10 @@ namespace TaskTimeDB
             q.Append(@", ");
             q.Append(@"subtask_alias_id INTEGER");
             q.Append(@", ");
+            q.Append(@"item_id INTEGER");
+            q.Append(@", ");
+            q.Append(@"item_alias_id INTEGER");
+            q.Append(@", ");
             q.Append(@"source_id INTEGER");
             q.Append(@", ");
             q.Append(@"date INTEGER");
@@ -166,6 +190,10 @@ namespace TaskTimeDB
             q.Append(@"FOREIGN KEY(subtask_id) REFERENCES subtasks(subtask_id)");
             q.Append(@", ");
             q.Append(@"FOREIGN KEY(subtask_alias_id) REFERENCES subtask_aliases(alias_id)");
+            q.Append(@", ");
+            q.Append(@"FOREIGN KEY(item_id) REFERENCES items(item_id)");
+            q.Append(@", ");
+            q.Append(@"FOREIGN KEY(item_alias_id) REFERENCES item_aliases(alias_id)");
             q.Append(@", ");
             q.Append(@"FOREIGN KEY(source_id) REFERENCES source_infos(source_id)");
             q.Append(@");");
@@ -305,6 +333,8 @@ namespace TaskTimeDB
                 while (!log.EOF)
                 {
                     var item = log.Get();
+                    //
+                    if (item.Time == 0) continue;
                     // タスク登録
                     var taskId = await QueryCheckTasks(trans, item);
                     if (taskId == -1)
@@ -329,8 +359,20 @@ namespace TaskTimeDB
                     {
                         subtaskAliasId = await QuerySetSubTaskAliases(trans, item);
                     }
+                    // Item登録
+                    var itemId = await QueryCheckItems(trans, item);
+                    if (itemId == -1)
+                    {
+                        itemId = await QuerySetItems(trans, item);
+                    }
+                    // ItemAlias登録
+                    var itemAliasId = await QueryCheckItemAliases(trans, item);
+                    if (itemAliasId == -1)
+                    {
+                        itemAliasId = await QuerySetItemAliases(trans, item);
+                    }
                     // work_time登録
-                    var work_time_id = await QuerySetWorkTime(trans, item, log, personId, taskId, aliasId, subtaskId, subtaskAliasId, sourceId);
+                    var work_time_id = await QuerySetWorkTime(trans, item, log, personId, taskId, aliasId, subtaskId, subtaskAliasId, itemId, itemAliasId, sourceId);
                 }
                 return true;
             }
@@ -503,7 +545,7 @@ namespace TaskTimeDB
                     command.Transaction = trans;
                     command.CommandText = query.ToString();
                     command.ExecuteNonQuery();
-                    // last_insert_rowid() がsource_idになってるはず
+                    // last_insert_rowid() がidになってるはず
                     return await GetLastInsertRowId(trans);
                 }
             }
@@ -554,7 +596,7 @@ namespace TaskTimeDB
                     command.Transaction = trans;
                     command.CommandText = query.ToString();
                     command.ExecuteNonQuery();
-                    // last_insert_rowid() がsource_idになってるはず
+                    // last_insert_rowid() がidになってるはず
                     return await GetLastInsertRowId(trans);
                 }
             }
@@ -717,7 +759,109 @@ namespace TaskTimeDB
             }
         }
 
-        private async Task<int> QuerySetWorkTime(SqliteTransaction trans, LogType item, LogReader log, int person_id, int task_id, int task_alias_id, int subtask_id, int subtask_alias_id, int source_id)
+        private async Task<int> QueryCheckItems(SqliteTransaction trans, LogType item)
+        {
+            try
+            {
+                // クエリ作成
+                var query = new StringBuilder();
+                query.Append($@"SELECT item_id FROM items");
+                query.Append($@" WHERE name = '{item.Item}'");
+                query.Append(@";");
+                // クエリ実行
+                // 登録チェック
+                using (var command = conn.CreateCommand())
+                {
+                    command.CommandText = query.ToString();
+                    if (trans != null) command.Transaction = trans;
+                    var id = await command.ExecuteScalarAsync();
+                    if (id != null) return (int)(long)(id);
+                    else return -1;
+                }
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
+        private async Task<int> QuerySetItems(SqliteTransaction trans, LogType item)
+        {
+            try
+            {
+                // クエリ作成
+                var query = new StringBuilder();
+                query.Append($@"INSERT INTO items (name)");
+                query.Append($@" VALUES ('{item.Item}')");
+                query.Append(@";");
+                // クエリ実行
+                using (var command = conn.CreateCommand())
+                {
+                    command.Transaction = trans;
+                    command.CommandText = query.ToString();
+                    command.ExecuteNonQuery();
+                    // last_insert_rowid() がidになってるはず
+                    return await GetLastInsertRowId(trans);
+                }
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
+        private async Task<int> QueryCheckItemAliases(SqliteTransaction trans, LogType item)
+        {
+            try
+            {
+                // クエリ作成
+                var query = new StringBuilder();
+                query.Append($@"SELECT alias_id FROM item_aliases");
+                query.Append($@" WHERE name = '{item.ItemAlias}'");
+                query.Append(@";");
+                // クエリ実行
+                // 登録チェック
+                using (var command = conn.CreateCommand())
+                {
+                    command.CommandText = query.ToString();
+                    if (trans != null) command.Transaction = trans;
+                    var id = await command.ExecuteScalarAsync();
+                    if (id != null) return (int)(long)(id);
+                    else return -1;
+                }
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
+        private async Task<int> QuerySetItemAliases(SqliteTransaction trans, LogType item)
+        {
+            try
+            {
+                // クエリ作成
+                var query = new StringBuilder();
+                query.Append($@"INSERT INTO item_aliases (name)");
+                query.Append($@" VALUES ('{item.ItemAlias}')");
+                query.Append(@";");
+                // クエリ実行
+                using (var command = conn.CreateCommand())
+                {
+                    command.Transaction = trans;
+                    command.CommandText = query.ToString();
+                    command.ExecuteNonQuery();
+                    // last_insert_rowid() がidになってるはず
+                    return await GetLastInsertRowId(trans);
+                }
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
+        private async Task<int> QuerySetWorkTime(SqliteTransaction trans, LogType item, LogReader log, int person_id, int task_id, int task_alias_id, int subtask_id, int subtask_alias_id, int item_id, int item_alias_id, int source_id)
         {
             try
             {
@@ -728,8 +872,8 @@ namespace TaskTimeDB
                 var day = log.FileDateTime.Day;
                 // クエリ作成
                 var query = new StringBuilder();
-                query.Append($@"INSERT INTO work_times (person_id, task_id, task_alias_id, subtask_id, subtask_alias_id, source_id, date, year, month, day, time)");
-                query.Append($@" VALUES ('{person_id}', '{task_id}', '{task_alias_id}', '{subtask_id}', '{subtask_alias_id}', '{source_id}', '{date}', '{year}', '{month}', '{day}', '{item.Time}')");
+                query.Append($@"INSERT INTO work_times (person_id, task_id, task_alias_id, subtask_id, subtask_alias_id, item_id, item_alias_id, source_id, date, year, month, day, time)");
+                query.Append($@" VALUES ('{person_id}', '{task_id}', '{task_alias_id}', '{subtask_id}', '{subtask_alias_id}', '{item_id}', '{item_alias_id}', '{source_id}', '{date}', '{year}', '{month}', '{day}', '{item.Time}')");
                 query.Append(@";");
                 // クエリ実行
                 using (var command = conn.CreateCommand())
@@ -774,13 +918,18 @@ namespace TaskTimeDB
 
     class LogType
     {
+        // MainTask
         public string Code { get; set; }
         public string Name { get; set; }
         public string Alias { get; set; }
+        // SubTask
         public string SubCode { get; set; }
         public string SubAlias { get; set; }
+        // Item
         public string Item { get; set; }
-        public int Time { get; set; }           // minute/LSB
+        public string ItemAlias { get; set; }
+        // Time(minute/LSB)
+        public int Time { get; set; }
     }
 
     class LogReader : IDisposable
@@ -866,7 +1015,7 @@ namespace TaskTimeDB
                     int min;
                     try
                     {
-                        min = int.Parse(match.Groups[7].ToString());
+                        min = int.Parse(match.Groups[8].ToString());
                     }
                     catch
                     {
@@ -880,6 +1029,7 @@ namespace TaskTimeDB
                         SubCode = match.Groups[4].ToString(),
                         SubAlias = match.Groups[5].ToString(),
                         Item = match.Groups[6].ToString(),
+                        ItemAlias = match.Groups[7].ToString(),
                         Time = min
                     };
                 }
