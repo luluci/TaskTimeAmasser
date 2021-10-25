@@ -13,22 +13,32 @@ namespace TaskTimeDB
 {
     class MainWindowViewModel : BindableBase, IDisposable
     {
-        public ReactiveProperty<string> Text { get; } 
-
+        public ReactiveProperty<string> DBFilePath { get; set; }
+        public ReactiveProperty<string> LogDirPath { get; set; }
         public ReactiveProperty<DataTable> DB { get; }
 
         private SQLite sqlite;
 
         public MainWindowViewModel()
         {
+            //
+            Config.Load().Wait();
             // 
+            /*
             sqlite = new SQLite();
             Disposable.Add(sqlite);
             sqlite.Open();
 
-            sqlite.LoadLogFile("oreore", @"D:\home\csharp\TaskTimer\TaskTimer\bin\Debug\log\log.20211002.txt").Wait();
+            sqlite.LoadLogFile("oreore", @"D:\home\csharp\TaskTimerPublish\TaskTimer_work\log\log.20211023.txt").Wait();
+            */
+            DBFilePath = new ReactiveProperty<string>(Config.DBFilePath, mode: ReactivePropertyMode.DistinctUntilChanged);
+            DBFilePath.PropertyChanged += (s, e) => Config.DBFilePath = DBFilePath.Value;
+            Disposable.Add(DBFilePath);
+            LogDirPath = new ReactiveProperty<string>(Config.LogDirPath, mode: ReactivePropertyMode.DistinctUntilChanged);
+            LogDirPath.PropertyChanged += (s, e) => Config.LogDirPath = LogDirPath.Value;
+            Disposable.Add(LogDirPath);
 
-            Text = new ReactiveProperty<string>("Hello, Prism!");
+            Disposable.Add(Config.config);
 
             // DB作成
             var tbl = new DataTable();
@@ -45,6 +55,7 @@ namespace TaskTimeDB
                 }
                 tbl.Rows.Add(row);
             }
+
             // Reactive設定
             DB = new ReactiveProperty<DataTable>(tbl);
             //DB.Value = tbl;
@@ -61,6 +72,7 @@ namespace TaskTimeDB
                 if (disposing)
                 {
                     this.Disposable.Dispose();
+                    //Config.Save().Wait();
                 }
 
                 disposedValue = true;
