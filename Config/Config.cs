@@ -9,56 +9,75 @@ using System.Text.Json.Serialization;
 using System.IO;
 using System.Text.Encodings.Web;
 using System.Text.Unicode;
+using Reactive.Bindings;
+using Reactive.Bindings.Extensions;
+using System.Reactive.Disposables;
 
-namespace TaskTimeDB
+namespace Config
 {
-    static class Config
+    public interface IConfig : IDisposable
     {
-        public static ConfigImpl config = new ConfigImpl();
+        void Load();
+        Task LoadAsync();
+        void Save();
+        Task SaveAsync();
 
-        public static string DBFilePath
-        {
-            get { return config.json.DBFilePath; }
-            set
-            {
-                config.json.DBFilePath = value;
-            }
-        }
-
-        public static string LogDirPath
-        {
-            get { return config.json.LogDirPath; }
-            set
-            {
-                config.json.LogDirPath = value;
-            }
-        }
-
-        public static async Task Load()
-        {
-            await config.Load().ConfigureAwait(false);
-        }
-        public static async Task Save()
-        {
-            await config.Save().ConfigureAwait(false);
-        }
+        ReactivePropertySlim<string> DBFilePath { get; set; }
+        ReactivePropertySlim<string> LogDirPath { get; set; }
     }
 
-    class ConfigImpl : IDisposable
+    public class Config : IConfig
     {
+        private CompositeDisposable disposables = new CompositeDisposable();
         private string configFilePath;
+        public bool PropertyChanged;
         public JsonItem json;
 
-        public ConfigImpl()
+        public Config()
         {
+            PropertyChanged = false;
             // パス設定
             configFilePath = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName + @".json";
+            // property
+            DBFilePath = new ReactivePropertySlim<string>("");
+            DBFilePath.Subscribe(x =>
+            {
+                if (json != null)
+                {
+                    json.DBFilePath = x;
+                    PropertyChanged = true;
+                }
+            })
+            .AddTo(disposables);
+            LogDirPath = new ReactivePropertySlim<string>("");
+            LogDirPath.Subscribe(x =>
+            {
+                if (json != null)
+                {
+                    json.LogDirPath = x;
+                    PropertyChanged = true;
+                }
+            })
+            .AddTo(disposables);
+        }
+
+        public ReactivePropertySlim<string> DBFilePath { get; set; }
+        public ReactivePropertySlim<string> LogDirPath { get; set; }
+
+        public void Load()
+        {
+            LoadImpl(false).Wait();
+        }
+
+        public async Task LoadAsync()
+        {
+            await LoadImpl(true);
         }
 
         /** 初回起動用に同期的に動作する
          * 
          */
-        public async Task Load()
+        private async Task LoadImpl(bool configAwait = true)
         {
             // 設定ロード
             if (File.Exists(configFilePath))
@@ -75,7 +94,7 @@ namespace TaskTimeDB
                 using (var stream = new FileStream(configFilePath, FileMode.Open, FileAccess.Read))
                 {
                     // 呼び出し元でWait()している。ConfigureAwait(false)無しにawaitするとデッドロックで死ぬ。
-                    json = await JsonSerializer.DeserializeAsync<JsonItem>(stream, options).ConfigureAwait(false);
+                    json = await JsonSerializer.DeserializeAsync<JsonItem>(stream, options).ConfigureAwait(configAwait);
                 }
             }
             else
@@ -87,9 +106,22 @@ namespace TaskTimeDB
                     LogDirPath = "",
                 };
             }
+            // property更新
+            DBFilePath.Value = json.DBFilePath;
+            LogDirPath.Value = json.LogDirPath;
         }
 
-        public async Task Save()
+        public void Save()
+        {
+            SaveImpl(false).Wait();
+        }
+
+        public async Task SaveAsync()
+        {
+            await SaveImpl(true);
+        }
+
+        public async Task SaveImpl(bool configAwait = true)
         {
             var options = new JsonSerializerOptions
             {
@@ -102,7 +134,7 @@ namespace TaskTimeDB
             using (var stream = new FileStream(configFilePath, FileMode.Create, FileAccess.Write))
             {
                 // 呼び出し元でWait()している。ConfigureAwait(false)無しにawaitするとデッドロックで死ぬ。
-                await JsonSerializer.SerializeAsync(stream, json, options).ConfigureAwait(false);
+                await JsonSerializer.SerializeAsync(stream, json, options).ConfigureAwait(configAwait);
             }
         }
 
@@ -115,7 +147,11 @@ namespace TaskTimeDB
             {
                 if (disposing)
                 {
-                    Save().Wait();
+                    disposables.Dispose();
+                    if (PropertyChanged)
+                    {
+                        Save();
+                    }
                 }
 
                 disposedValue = true;
@@ -129,7 +165,7 @@ namespace TaskTimeDB
         #endregion
     }
 
-    class JsonItem
+    public class JsonItem
     {
         [JsonPropertyName("db_file_path")]
         public string DBFilePath { get; set; }

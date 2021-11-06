@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace TaskTimeDB.Properties {
+namespace TaskTimeAmasser.Properties {
     using System;
     
     

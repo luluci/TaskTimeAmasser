@@ -10,13 +10,19 @@ using Prism.Ioc;
 using Prism.Mvvm;
 using Prism.Unity;
 
-namespace TaskTimeDB
+namespace TaskTimeAmasser
 {
     /// <summary>
     /// App.xaml の相互作用ロジック
     /// </summary>
     public partial class App : PrismApplication
     {
+        protected override void Initialize()
+        {
+            Reactive.Bindings.ReactivePropertyScheduler.SetDefault(new Reactive.Bindings.Schedulers.ReactivePropertyWpfScheduler(Dispatcher));
+            base.Initialize();
+        }
+
         protected override Window CreateShell()
         {
             return Container.Resolve<MainWindow>();
@@ -24,9 +30,14 @@ namespace TaskTimeDB
 
         protected override void RegisterTypes(IContainerRegistry containerRegistry)
         {
+            // ViewModel
             base.ConfigureViewModelLocator();
-
             ViewModelLocationProvider.Register<MainWindow, MainWindowViewModel>();
+
+            // DI
+            containerRegistry.RegisterSingleton<Config.IConfig, Config.Config>();
+            containerRegistry.RegisterSingleton<Repository.IRepository, Repository.Repository>();
+            //containerRegistry.RegisterInstance(this.Container);
         }
     }
 }
