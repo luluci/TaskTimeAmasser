@@ -10,34 +10,62 @@ using Prism.Mvvm;
 using Reactive.Bindings;
 using Reactive.Bindings.Extensions;
 
+using WinAPI = Microsoft.WindowsAPICodePack;
+
 namespace TaskTimeAmasser
 {
     class MainWindowViewModel : BindableBase, IDisposable
     {
-        public ReactiveProperty<string> DBFilePath { get; set; }
+        public ReactivePropertySlim<string> DBFilePath { get; set; }
+        public ReactiveCommand DBFilePathSelect { get; }
+
         public ReactivePropertySlim<string> LogDirPath { get; set; }
         public ReactivePropertySlim<string> LogDirLoad { get; set; }
+        public ReactiveCommand LogDirPathSelect { get; }
+
         public ReactiveProperty<DataTable> DB { get; }
 
         //private SQLite sqlite;
         private Config.IConfig config;
         private Repository.IRepository db;
 
+
         public MainWindowViewModel(IContainerProvider diContainer, Config.IConfig config, Repository.IRepository db)
         {
             this.config = config;
             this.db = db;
-            var tttt = db.Hoge;
 
             // Configロード
             config.Load();
             Disposable.Add(config);
             // GUI初期化
+            // DBFilePath設定
             DBFilePath = config.DBFilePath
-                .ToReactivePropertyAsSynchronized(x => x.Value)
+                .ToReactivePropertySlimAsSynchronized(x => x.Value)
                 .AddTo(Disposable);
+            DBFilePathSelect = new ReactiveCommand();
+            DBFilePathSelect
+                .Subscribe(_ => {
+                    var result = FileSelectDialog(DBFilePath.Value);
+                    if (!(result is null))
+                    {
+                        DBFilePath.Value = result;
+                    }
+                })
+                .AddTo(Disposable);
+            // LogDir設定
             LogDirPath = config.LogDirPath
                 .ToReactivePropertySlimAsSynchronized(x => x.Value)
+                .AddTo(Disposable);
+            LogDirPathSelect = new ReactiveCommand();
+            LogDirPathSelect
+                .Subscribe(_ => {
+                    var result = DirSelectDialog(LogDirPath.Value);
+                    if (!(result is null))
+                    {
+                        LogDirPath.Value = result;
+                    }
+                })
                 .AddTo(Disposable);
             //DBFilePath = new ReactiveProperty<string>(Config.DBFilePath, mode: ReactivePropertyMode.DistinctUntilChanged);
             /*
@@ -90,6 +118,50 @@ namespace TaskTimeAmasser
             DB = new ReactiveProperty<DataTable>(tbl);
             //DB.Value = tbl;
         }
+
+
+        private string DirSelectDialog(string initDir)
+        {
+            string result = null;
+            var dlg = new WinAPI::Dialogs.CommonOpenFileDialog
+            {
+                // フォルダ選択ダイアログ（falseにするとファイル選択ダイアログ）
+                IsFolderPicker = true,
+                // タイトル
+                Title = "フォルダを選択してください",
+                // 初期ディレクトリ
+                InitialDirectory = initDir
+            };
+
+            if (dlg.ShowDialog() == WinAPI::Dialogs.CommonFileDialogResult.Ok)
+            {
+                result = dlg.FileName;
+            }
+
+            return result;
+        }
+
+        private string FileSelectDialog(string initDir)
+        {
+            string result = null;
+            var dlg = new WinAPI::Dialogs.CommonOpenFileDialog
+            {
+                // フォルダ選択ダイアログ（falseにするとファイル選択ダイアログ）
+                IsFolderPicker = false,
+                // タイトル
+                Title = "ファイルを選択してください",
+                // 初期ディレクトリ
+                InitialDirectory = initDir
+            };
+            
+            if (dlg.ShowDialog() == WinAPI::Dialogs.CommonFileDialogResult.Ok)
+            {
+                result = dlg.FileName;
+            }
+
+            return result;
+        }
+
 
         // Dispose
         private CompositeDisposable Disposable { get; } = new CompositeDisposable();
