@@ -1,27 +1,81 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reactive.Disposables;
 using System.Text;
 using System.Threading.Tasks;
+
+using Reactive.Bindings;
+using Reactive.Bindings.Extensions;
 
 namespace Repository
 {
     public interface IRepository : IDisposable
     {
-        int Id();
+        ReactivePropertySlim<bool> IsConnect { get; set; }
 
-        string Hoge { get; set; }
+        Task Connect(string repoPath);
+        Task Close();
     }
 
     public class Repository : IRepository
     {
+        private CompositeDisposable disposables = new CompositeDisposable();
 
-        int IRepository.Id()
+        public ReactivePropertySlim<bool> IsConnect { get; set; }
+
+        public Repository()
         {
-            return 111;
+            IsConnect = new ReactivePropertySlim<bool>(false);
+            IsConnect.AddTo(disposables);
         }
 
-        public string Hoge { get; set; } = "test";
+
+        public async Task Connect(string repoPath)
+        {
+            if (!IsConnect.Value)
+            {
+                IsConnect.Value = true;
+                try
+                {
+                    /*
+                    await Task.Run(() =>
+                    {
+                        // DB接続処理
+                    });
+                    */
+                    await Task.Delay(100);
+                }
+                catch
+                {
+                    IsConnect.Value = false;
+                }
+            }
+        }
+
+        public async Task Close()
+        {
+            if (IsConnect.Value)
+            {
+                try
+                {
+                    await Task.Run(() =>
+                    {
+                        // DB切断処理
+                    });
+                    await Task.Delay(100);
+                }
+                catch
+                {
+                    //
+                }
+                finally
+                {
+                    IsConnect.Value = false;
+                }
+            }
+        }
+
 
         #region IDisposable Support
         private bool disposedValue = false; // 重複する呼び出しを検出するには
@@ -33,6 +87,7 @@ namespace Repository
                 if (disposing)
                 {
                     // TODO: マネージド状態を破棄します (マネージド オブジェクト)。
+                    disposables.Dispose();
                 }
 
                 // TODO: アンマネージド リソース (アンマネージド オブジェクト) を解放し、下のファイナライザーをオーバーライドします。
