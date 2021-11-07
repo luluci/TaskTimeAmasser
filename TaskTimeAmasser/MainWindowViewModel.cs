@@ -4,6 +4,7 @@ using System.Data;
 using System.Linq;
 using System.Reactive.Disposables;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Prism.Ioc;
 using Prism.Mvvm;
@@ -49,8 +50,8 @@ namespace TaskTimeAmasser
             IsEnableDbCtrl = repository.IsConnect
                 .ToReactivePropertySlimAsSynchronized(
                     x => x.Value,
-                    x => x.Equals(false),
-                    x => x,
+                    (x) => { return !x; },
+                    (x) => { return x; },
                     ReactivePropertyMode.DistinctUntilChanged
                 )
                 .AddTo(Disposable);
@@ -77,7 +78,9 @@ namespace TaskTimeAmasser
                     }
                     else
                     {
+                        Console.WriteLine($"{Thread.CurrentThread.ManagedThreadId}: DBFileConnect/WithSubscribe START");
                         await repository.Connect(config.DBFilePath.Value);
+                        Console.WriteLine($"{Thread.CurrentThread.ManagedThreadId}: DBFileConnect/WithSubscribe END");
                     }
                 })
                 .AddTo(Disposable);
