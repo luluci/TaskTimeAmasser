@@ -13,6 +13,7 @@ namespace Repository
     public interface IRepository : IDisposable
     {
         ReactivePropertySlim<bool> IsConnect { get; set; }
+        ReactivePropertySlim<bool> IsLoading { get; set; }
 
         Task Connect(string repoPath);
         Task Close();
@@ -23,11 +24,16 @@ namespace Repository
         private CompositeDisposable disposables = new CompositeDisposable();
 
         public ReactivePropertySlim<bool> IsConnect { get; set; }
+        public ReactivePropertySlim<bool> IsLoading { get; set; }
 
         public Repository()
         {
+            //
             IsConnect = new ReactivePropertySlim<bool>(false);
             IsConnect.AddTo(disposables);
+            //
+            IsLoading = new ReactivePropertySlim<bool>(false);
+            IsLoading.AddTo(disposables);
         }
 
 

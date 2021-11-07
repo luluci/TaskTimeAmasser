@@ -18,13 +18,14 @@ namespace TaskTimeAmasser
     class MainWindowViewModel : BindableBase, IDisposable
     {
         //
-        public ReactivePropertySlim<bool> IsEnableDbCtrl { get; set; }
+        public ReadOnlyReactivePropertySlim<bool> IsEnableDbCtrl { get; set; }
         public ReactivePropertySlim<string> DBFilePath { get; set; }
         public ReactiveCommand DBFilePathSelect { get; }
-        public ReactivePropertySlim<string> DBFileConnectdText { get; set; }
+        public ReactivePropertySlim<string> DBFileConnectText { get; set; }
         public AsyncReactiveCommand DBFileConnect { get; set; }
         //
         public ReactivePropertySlim<bool> IsEnableRepoCtrl { get; set; }
+        public ReadOnlyReactivePropertySlim<bool> IsEnableRepoLoad { get; set; }
         public ReactivePropertySlim<string> LogDirPath { get; set; }
         public ReactiveCommand LogDirPathSelect { get; }
         public ReactivePropertySlim<string> LogDirLoadText { get; set; }
@@ -42,22 +43,46 @@ namespace TaskTimeAmasser
             this.config = config;
             this.repository = repo;
 
+            
             // Configロード
             config.Load();
             config.AddTo(Disposable);
             // GUI初期化
             // DBFilePath設定
+            // DB接続/切断ボタン表示テキスト
+            DBFileConnectText = new ReactivePropertySlim<string>("DB接続");
+            /*
             IsEnableDbCtrl = repository.IsConnect
                 .ToReactivePropertySlimAsSynchronized(
-                    x => x.Value,
-                    (x) => { return !x; },
-                    (x) => { return x; },
-                    ReactivePropertyMode.DistinctUntilChanged
+                    x => x.Value
+                    //(x) => { return !x; },
+                    //(x) => { return x; },
+                    //ReactivePropertyMode.DistinctUntilChanged
                 )
                 .AddTo(Disposable);
+                */
+            // DBファイル指定有効無効
+            IsEnableDbCtrl = repository.IsConnect
+                .Inverse()
+                .ToReadOnlyReactivePropertySlim();
+            IsEnableDbCtrl
+                .Subscribe((x) =>
+                {
+                    if (x)
+                    {
+                        DBFileConnectText.Value = "DB接続";
+                    }
+                    else
+                    {
+                        DBFileConnectText.Value = "DB切断";
+                    }
+                })
+                .AddTo(Disposable);
+            // DBファイルパス
             DBFilePath = config.DBFilePath
                 .ToReactivePropertySlimAsSynchronized(x => x.Value)
                 .AddTo(Disposable);
+            // DBファイル指定ダイアログボタンコマンド
             DBFilePathSelect = IsEnableDbCtrl.ToReactiveCommand();
             DBFilePathSelect
                 .Subscribe(_ => {
@@ -68,8 +93,9 @@ namespace TaskTimeAmasser
                     }
                 })
                 .AddTo(Disposable);
-            DBFileConnectdText = new ReactivePropertySlim<string>("DB接続");
-            DBFileConnect = new AsyncReactiveCommand();
+            // DB接続/切断ボタンコマンド
+            //DBFileConnect = new AsyncReactiveCommand();
+            DBFileConnect = repository.IsLoading.Inverse().ToAsyncReactiveCommand();
             DBFileConnect
                 .WithSubscribe(async () => {
                     if (repository.IsConnect.Value)
@@ -78,18 +104,27 @@ namespace TaskTimeAmasser
                     }
                     else
                     {
-                        Console.WriteLine($"{Thread.CurrentThread.ManagedThreadId}: DBFileConnect/WithSubscribe START");
+                        //Console.WriteLine($"{Thread.CurrentThread.ManagedThreadId}: DBFileConnect/WithSubscribe START");
                         await repository.Connect(config.DBFilePath.Value);
-                        Console.WriteLine($"{Thread.CurrentThread.ManagedThreadId}: DBFileConnect/WithSubscribe END");
+                        //Console.WriteLine($"{Thread.CurrentThread.ManagedThreadId}: DBFileConnect/WithSubscribe END");
                     }
                 })
                 .AddTo(Disposable);
             // LogDir設定
+            // Logファイルロードボタン表示テキスト
+            LogDirLoadText = new ReactivePropertySlim<string>("ロード");
+            // Logファイルロード有効無効
+            IsEnableRepoLoad = repository.IsConnect
+                .ToReadOnlyReactivePropertySlim()
+                .AddTo(Disposable);
+            // Logファイル設定有効無効
             IsEnableRepoCtrl = new ReactivePropertySlim<bool>(true);
+            // Logファイル保存ディレクトリパス
             LogDirPath = config.LogDirPath
                 .ToReactivePropertySlimAsSynchronized(x => x.Value)
                 .AddTo(Disposable);
-            LogDirPathSelect = new ReactiveCommand();
+            // Logファイル保存ディレクトリ選択ダイアログボタンコマンド
+            LogDirPathSelect = IsEnableRepoCtrl.ToReactiveCommand();
             LogDirPathSelect
                 .Subscribe(_ => {
                     var result = DirSelectDialog(LogDirPath.Value);
@@ -97,6 +132,18 @@ namespace TaskTimeAmasser
                     {
                         LogDirPath.Value = result;
                     }
+                })
+                .AddTo(Disposable);
+            // Logファイルロード開始ボタンコマンド
+            LogDirLoad = IsEnableRepoLoad
+                .ToAsyncReactiveCommand()
+                .WithSubscribe(async () =>
+                {
+                    repository.IsLoading.Value = true;
+                    IsEnableRepoCtrl.Value = false;
+                    await Task.Delay(1000);
+                    IsEnableRepoCtrl.Value = true;
+                    repository.IsLoading.Value = false;
                 })
                 .AddTo(Disposable);
             //DBFilePath = new ReactiveProperty<string>(Config.DBFilePath, mode: ReactivePropertyMode.DistinctUntilChanged);

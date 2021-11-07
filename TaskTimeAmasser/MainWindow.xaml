@@ -27,12 +27,12 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
-            <Button Grid.Row="0" Grid.Column="0" Margin="10,0" Command="{Binding DBFilePathSelect}" Content="{materialDesign:PackIcon Database}" />
-            <TextBox Grid.Row="0" Grid.Column="1" TextWrapping="NoWrap" Text="{Binding DBFilePath.Value}" IsEnabled="{Binding IsEnableDbCtrl.Value}" FontSize="14" Margin="0,10,0,10" Padding="10,5,0,0" materialDesign:TextFieldAssist.PrefixText="DBファイル"/>
-            <Button Grid.Row="0" Grid.Column="2" Margin="10,10" Content="{Binding DBFileConnectdText.Value}" Command="{Binding DBFileConnect}" />
-            <Button Grid.Row="1" Grid.Column="0" Margin="10,0" Command="{Binding LogDirPathSelect}" Content="{materialDesign:PackIcon Folder}" />
-            <TextBox Grid.Row="1" Grid.Column="1" TextWrapping="NoWrap" Text="{Binding LogDirPath.Value}" IsEnabled="{Binding IsEnableRepoCtrl}" FontSize="14" Margin="0,10,0,10" Padding="10,5,0,0" materialDesign:ThemeAssist.Theme="Light" materialDesign:TextFieldAssist.PrefixText="ログフォルダ" />
-            <Button Grid.Row="1" Grid.Column="2" Content="{Binding LogDirLoad.Value}" Margin="10,10" />
+            <Button Grid.Row="0" Grid.Column="0" Command="{Binding DBFilePathSelect}" Content="{materialDesign:PackIcon Database}" Margin="10,0" />
+            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding DBFilePath.Value}" IsEnabled="{Binding IsEnableDbCtrl.Value}" TextWrapping="NoWrap" FontSize="14" Margin="0,10,0,10" Padding="10,5,0,0" materialDesign:TextFieldAssist.PrefixText="DBファイル"/>
+            <Button Grid.Row="0" Grid.Column="2" Command="{Binding DBFileConnect}" Content="{Binding DBFileConnectText.Value}" Margin="10,10" />
+            <Button Grid.Row="1" Grid.Column="0" Command="{Binding LogDirPathSelect}" Content="{materialDesign:PackIcon Folder}" Margin="10,0" />
+            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding LogDirPath.Value}" IsEnabled="{Binding IsEnableRepoCtrl.Value}" TextWrapping="NoWrap" FontSize="14" Margin="0,10,0,10" Padding="10,5,0,0" materialDesign:ThemeAssist.Theme="Light" materialDesign:TextFieldAssist.PrefixText="ログフォルダ" />
+            <Button Grid.Row="1" Grid.Column="2" Command="{Binding LogDirLoad}" Content="{Binding LogDirLoadText.Value}" Margin="10,10" />
         </Grid>
         <Grid Background="#FFD6EAFB" Margin="0,104,0,0">
             <DataGrid ItemsSource="{Binding DB.Value}" IsReadOnly="True" Margin="258,10,10,10">
