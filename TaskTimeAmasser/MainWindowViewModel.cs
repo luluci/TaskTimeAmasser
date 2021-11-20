@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Data;
 using System.Linq;
 using System.Reactive.Disposables;
@@ -32,8 +33,13 @@ namespace TaskTimeAmasser
         public ReactiveCommand LogDirPathSelect { get; }
         public ReactivePropertySlim<string> LogDirLoadText { get; set; }
         public AsyncReactiveCommand LogDirLoad { get; set; }
+        // Query Preset
+        //public ObservableCollection<string> TaskCodeList { get { return repository.TaskCodeList; } }
+        public ReactiveCollection<string> TaskCodeList { get; }
+        public ReactivePropertySlim<int> TaskCodeListSelectIndex { get; set; }
         //
-        public ReactivePropertySlim<string> DialogMessage { get; set; }
+        public ReactivePropertySlim<string> DialogMessage
+        { get; set; }
 
         public ReactiveProperty<DataTable> DB { get; }
 
@@ -108,9 +114,16 @@ namespace TaskTimeAmasser
                     }
                     else
                     {
-                        //Console.WriteLine($"{Thread.CurrentThread.ManagedThreadId}: DBFileConnect/WithSubscribe START");
-                        await repository.Connect(config.DBFilePath.Value);
-                        //Console.WriteLine($"{Thread.CurrentThread.ManagedThreadId}: DBFileConnect/WithSubscribe END");
+                        DialogMessage.Value = "Connecting DB ...";
+                        var result = await DialogHost.Show(this.dialog, async delegate (object sender, DialogOpenedEventArgs args)
+                        {
+                            //Console.WriteLine($"{Thread.CurrentThread.ManagedThreadId}: DBFileConnect/WithSubscribe START");
+                            await repository.Connect(config.DBFilePath.Value);
+                            await repository.Update();
+                            UpdateQueryInfo();
+                            //Console.WriteLine($"{Thread.CurrentThread.ManagedThreadId}: DBFileConnect/WithSubscribe END");
+                            args.Session.Close(false);
+                        });
                     }
                 })
                 .AddTo(Disposables);
@@ -144,7 +157,7 @@ namespace TaskTimeAmasser
                 .WithSubscribe(async () =>
                 {
                     IsEnableRepoCtrl.Value = false;
-                    DialogMessage.Value = "Reading HexText File ...";
+                    DialogMessage.Value = "Loading LogFiles ...";
                     var result = await DialogHost.Show(this.dialog, async delegate (object sender, DialogOpenedEventArgs args)
                     {
                         await repository.Load(LogDirPath.Value);
@@ -152,6 +165,14 @@ namespace TaskTimeAmasser
                     });
                     IsEnableRepoCtrl.Value = true;
                 })
+                .AddTo(Disposables);
+            // Query Preset
+            TaskCodeList = new ReactiveCollection<string>();
+            TaskCodeList.Add("<指定なし>");
+            TaskCodeList
+                .AddTo(Disposables);
+            TaskCodeListSelectIndex = new ReactivePropertySlim<int>(0);
+            TaskCodeListSelectIndex
                 .AddTo(Disposables);
             //
             DialogMessage = new ReactivePropertySlim<string>("");
@@ -178,6 +199,21 @@ namespace TaskTimeAmasser
             //DB.Value = tbl;
         }
 
+        private void UpdateQueryInfo()
+        {
+            TaskCodeList.Clear();
+            TaskCodeList.Add("<指定なし>");
+            foreach (var code in repository.TaskCodeList)
+            {
+                TaskCodeList.Add(code);
+            }
+            TaskCodeListSelectIndex.Value = 0;
+        }
+
+        private void UpdateDbView()
+        {
+
+        }
 
         private string DirSelectDialog(string initDir)
         {

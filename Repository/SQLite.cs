@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Data;
 using System.IO;
 using System.Linq;
@@ -931,6 +932,37 @@ namespace Repository
             catch
             {
                 throw;
+            }
+        }
+
+
+        public async Task<bool> QueryGetTaskCode<T>(Collection<T> list)
+        {
+            try
+            {
+                // クエリ作成
+                var query = new StringBuilder();
+                query.Append(@"SELECT code FROM tasks");
+                //query.Append($@" WHERE name = '{person}'");
+                query.Append(@";");
+                // クエリ実行
+                using (var command = conn.CreateCommand())
+                {
+                    command.CommandText = query.ToString();
+                    using (var reader = await command.ExecuteReaderAsync())
+                    {
+                        // 結果読み出し
+                        while (reader.Read() == true)
+                        {
+                            list.Add((T)reader["code"]);
+                        }
+                    }
+                }
+                return true;
+            }
+            catch
+            {
+                return false;
             }
         }
     }

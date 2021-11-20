@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Reactive.Disposables;
@@ -15,10 +16,12 @@ namespace Repository
     {
         ReactivePropertySlim<bool> IsConnect { get; set; }
         ReactivePropertySlim<bool> IsLoading { get; set; }
+        ObservableCollection<string> TaskCodeList { get; set; }
 
         Task Connect(string repoPath);
         Task Close();
         Task Load(string logPath);
+        Task Update();
     }
 
     public class Repository : IRepository
@@ -27,6 +30,8 @@ namespace Repository
 
         public ReactivePropertySlim<bool> IsConnect { get; set; }
         public ReactivePropertySlim<bool> IsLoading { get; set; }
+
+        public ObservableCollection<string> TaskCodeList { get; set; } = new ObservableCollection<string>();
 
         private SQLite sqlite;
 
@@ -41,11 +46,6 @@ namespace Repository
             // DB
             sqlite = new SQLite();
             disposables.Add(sqlite);
-            /*
-            sqlite.Open();
-
-            sqlite.LoadLogFile("oreore", @"D:\home\csharp\TaskTimerPublish\TaskTimer_work\log\log.20211023.txt").Wait();
-            */
         }
 
 
@@ -150,6 +150,11 @@ namespace Repository
             return existLog;
         }
 
+        public async Task Update()
+        {
+            TaskCodeList = new ObservableCollection<string>();
+            var result = await sqlite.QueryGetTaskCode(TaskCodeList);
+        }
 
         #region IDisposable Support
         private bool disposedValue = false; // 重複する呼び出しを検出するには
