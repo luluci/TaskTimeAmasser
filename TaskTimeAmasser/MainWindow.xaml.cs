@@ -24,5 +24,10 @@ namespace TaskTimeAmasser
         {
             InitializeComponent();
         }
+
+        public void Init()
+        {
+            ((MainWindowViewModel)this.DataContext).dialog = this.dialog;
+        }
     }
 }

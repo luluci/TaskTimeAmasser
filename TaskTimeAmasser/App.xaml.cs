@@ -25,7 +25,10 @@ namespace TaskTimeAmasser
 
         protected override Window CreateShell()
         {
-            return Container.Resolve<MainWindow>();
+            var wnd = Container.Resolve<MainWindow>();
+            wnd.Init();
+            return wnd;
+            //return Container.Resolve<MainWindow>();
         }
 
         protected override void RegisterTypes(IContainerRegistry containerRegistry)
@@ -38,6 +41,8 @@ namespace TaskTimeAmasser
             containerRegistry.RegisterSingleton<Config.IConfig, Config.Config>();
             containerRegistry.RegisterSingleton<Repository.IRepository, Repository.Repository>();
             //containerRegistry.RegisterInstance(this.Container);
+
+
         }
     }
 }

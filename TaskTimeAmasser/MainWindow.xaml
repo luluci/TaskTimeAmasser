@@ -10,46 +10,78 @@
         xmlns:local="clr-namespace:TaskTimeAmasser"
         mc:Ignorable="d"
         prism:ViewModelLocator.AutoWireViewModel="True"
-        Title="MainWindow" Height="618.75" Width="973.75">
+        Title="MainWindow" Height="744.018" Width="973.75">
     <bh:Interaction.Triggers>
         <bh:EventTrigger EventName="Closed">
             <l:DataContextDisposeAction />
         </bh:EventTrigger>
     </bh:Interaction.Triggers>
-    <Grid>
-        <Grid Height="104" VerticalAlignment="Top" Background="#FFFFF1F1">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="70" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="200" />
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-            <Button Grid.Row="0" Grid.Column="0" Command="{Binding DBFilePathSelect}" Content="{materialDesign:PackIcon Database}" Margin="10,0" />
-            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding DBFilePath.Value}" IsEnabled="{Binding IsEnableDbCtrl.Value}" TextWrapping="NoWrap" FontSize="14" Margin="0,10,0,10" Padding="10,5,0,0" materialDesign:TextFieldAssist.PrefixText="DBファイル"/>
-            <Button Grid.Row="0" Grid.Column="2" Command="{Binding DBFileConnect}" Content="{Binding DBFileConnectText.Value}" Margin="10,10" />
-            <Button Grid.Row="1" Grid.Column="0" Command="{Binding LogDirPathSelect}" Content="{materialDesign:PackIcon Folder}" Margin="10,0" />
-            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding LogDirPath.Value}" IsEnabled="{Binding IsEnableRepoCtrl.Value}" TextWrapping="NoWrap" FontSize="14" Margin="0,10,0,10" Padding="10,5,0,0" materialDesign:ThemeAssist.Theme="Light" materialDesign:TextFieldAssist.PrefixText="ログフォルダ" />
-            <Button Grid.Row="1" Grid.Column="2" Command="{Binding LogDirLoad}" Content="{Binding LogDirLoadText.Value}" Margin="10,10" />
-        </Grid>
-        <Grid Background="#FFD6EAFB" Margin="0,104,0,0">
-            <DataGrid ItemsSource="{Binding DB.Value}" IsReadOnly="True" Margin="258,10,10,10">
-                <!--
-                <DataGrid.RowStyle>
-                    <Style TargetType="DataGridRow">
+    <materialDesign:DialogHost  DialogTheme="Inherit">
+        <materialDesign:DialogHost.DialogContent>
+            <StackPanel Margin="16" x:Name="dialog">
+                <materialDesign:Card UniformCornerRadius="14" Padding="4" Height="29" Width="29" Margin="0,0,0,10">
+                    <ProgressBar Style="{StaticResource MaterialDesignCircularProgressBar}" Value="0" IsIndeterminate="True" />
+                </materialDesign:Card>
+                <TextBlock Text="{Binding DialogMessage.Value}" FontFamily="Meiryo UI" TextAlignment="Center"/>
+            </StackPanel>
+        </materialDesign:DialogHost.DialogContent>
+        <Grid>
+            <Grid Height="104" VerticalAlignment="Top" Background="#FFFFF1F1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="70" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="200" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Button Grid.Row="0" Grid.Column="0" Command="{Binding DBFilePathSelect}" Content="{materialDesign:PackIcon Database}" Margin="10,0" />
+                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding DBFilePath.Value}" IsEnabled="{Binding IsEnableDbCtrl.Value}" TextWrapping="NoWrap" FontSize="14" Margin="0,10,0,10" Padding="10,5,0,0" materialDesign:TextFieldAssist.PrefixText="DBファイル"/>
+                <Button Grid.Row="0" Grid.Column="2" Command="{Binding DBFileConnect}" Content="{Binding DBFileConnectText.Value}" Margin="10,10" />
+                <Button Grid.Row="1" Grid.Column="0" Command="{Binding LogDirPathSelect}" Content="{materialDesign:PackIcon Folder}" Margin="10,0" />
+                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding LogDirPath.Value}" IsEnabled="{Binding IsEnableRepoCtrl.Value}" TextWrapping="NoWrap" FontSize="14" Margin="0,10,0,10" Padding="10,5,0,0" materialDesign:ThemeAssist.Theme="Light" materialDesign:TextFieldAssist.PrefixText="ログフォルダ" />
+                <Button Grid.Row="1" Grid.Column="2" Command="{Binding LogDirLoad}" Content="{Binding LogDirLoadText.Value}" Margin="10,10" />
+            </Grid>
+            <Grid Background="#FFD6EAFB" Margin="0,104,0,167">
+                <DataGrid ItemsSource="{Binding DB.Value}" IsReadOnly="True" Margin="258,10,10,10">
+                    <!--
+                            <DataGrid.RowStyle>
+                                <Style TargetType="DataGridRow">
                         
-                    </Style>
-                </DataGrid.RowStyle>
-                <DataGrid.CellStyle>
-                    <Style TargetType="DataGridCell">
+                                </Style>
+                            </DataGrid.RowStyle>
+                            <DataGrid.CellStyle>
+                                <Style TargetType="DataGridCell">
                         
-                    </Style>
-                </DataGrid.CellStyle>
-                -->
-            </DataGrid>
-        </Grid>
+                                </Style>
+                            </DataGrid.CellStyle>
+                            -->
+                </DataGrid>
+                <TextBlock HorizontalAlignment="Left" Height="23" Margin="10,10,0,0" TextWrapping="Wrap" Text="SQL Preset" VerticalAlignment="Top" Width="227" TextDecorations="Underline" FontSize="14"/>
+                <Grid Margin="0,38,0,0" Height="30" VerticalAlignment="Top" HorizontalAlignment="Left" Width="253">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="70"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Task" FontFamily="Meiryo UI" TextAlignment="Center" Margin="0,8,0,0"/>
+                    <TextBox Grid.Column="1" Margin="0,0,10,0"/>
+                </Grid>
+                <Grid Margin="0,73,0,0" Height="30" VerticalAlignment="Top" HorizontalAlignment="Left" Width="253">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="70"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Code" FontFamily="Meiryo UI" TextAlignment="Center" Margin="0,8,0,0"/>
+                    <ComboBox Grid.Column="1" Margin="0,0,10,0" />
+                </Grid>
+                <Button Content="Task一覧" HorizontalAlignment="Left" Height="29" Margin="10,128,0,0" VerticalAlignment="Top" Width="240"/>
+                <Button Content="SubKey/Time一覧" HorizontalAlignment="Left" Height="29" Margin="10,170,0,0" VerticalAlignment="Top" Width="240"/>
+            </Grid>
+            <Grid Background="#FFE9FFDD" Height="167" VerticalAlignment="Bottom">
+                <TextBlock HorizontalAlignment="Left" Height="24" Margin="10,10,0,0" TextWrapping="Wrap" Text="SQL Manual" VerticalAlignment="Top" Width="227" TextDecorations="Underline" FontSize="14"/>
+            </Grid>
 
-    </Grid>
+        </Grid>
+    </materialDesign:DialogHost>
 </Window>

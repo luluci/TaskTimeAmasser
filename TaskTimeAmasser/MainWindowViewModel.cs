@@ -6,6 +6,8 @@ using System.Reactive.Disposables;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Controls;
+using MaterialDesignThemes.Wpf;
 using Prism.Ioc;
 using Prism.Mvvm;
 using Reactive.Bindings;
@@ -30,12 +32,15 @@ namespace TaskTimeAmasser
         public ReactiveCommand LogDirPathSelect { get; }
         public ReactivePropertySlim<string> LogDirLoadText { get; set; }
         public AsyncReactiveCommand LogDirLoad { get; set; }
+        //
+        public ReactivePropertySlim<string> DialogMessage { get; set; }
 
         public ReactiveProperty<DataTable> DB { get; }
 
         private Config.IConfig config;
         private Repository.IRepository repository;
 
+        public StackPanel dialog { get; set; } = null;
 
         public MainWindowViewModel(IContainerProvider diContainer, Config.IConfig config, Repository.IRepository repo)
         {
@@ -139,10 +144,18 @@ namespace TaskTimeAmasser
                 .WithSubscribe(async () =>
                 {
                     IsEnableRepoCtrl.Value = false;
-                    await repository.Load(LogDirPath.Value);
+                    DialogMessage.Value = "Reading HexText File ...";
+                    var result = await DialogHost.Show(this.dialog, async delegate (object sender, DialogOpenedEventArgs args)
+                    {
+                        await repository.Load(LogDirPath.Value);
+                        args.Session.Close(false);
+                    });
                     IsEnableRepoCtrl.Value = true;
                 })
                 .AddTo(Disposables);
+            //
+            DialogMessage = new ReactivePropertySlim<string>("");
+            DialogMessage.AddTo(Disposables);
 
             // DB作成
             var tbl = new DataTable();

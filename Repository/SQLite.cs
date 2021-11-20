@@ -350,9 +350,8 @@ namespace Repository
             {
                 while (!log.EOF)
                 {
+                    // ログデータ取得
                     var item = log.Get();
-                    //
-                    if (item.Time == 0) continue;
                     // タスク登録
                     var taskId = await QueryCheckTasks(trans, item);
                     if (taskId == -1)
@@ -377,6 +376,8 @@ namespace Repository
                     {
                         subtaskAliasId = await QuerySetSubTaskAliases(trans, item);
                     }
+                    // Item,WorkTimeは、WorkTimeがゼロでないときだけ登録する
+                    if (item.Time == 0) continue;
                     // Item登録
                     var itemId = await QueryCheckItems(trans, item);
                     if (itemId == -1)
