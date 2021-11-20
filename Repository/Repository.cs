@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reactive.Disposables;
 using System.Text;
@@ -17,6 +18,7 @@ namespace Repository
 
         Task Connect(string repoPath);
         Task Close();
+        Task Load(string logPath);
     }
 
     public class Repository : IRepository
@@ -26,6 +28,8 @@ namespace Repository
         public ReactivePropertySlim<bool> IsConnect { get; set; }
         public ReactivePropertySlim<bool> IsLoading { get; set; }
 
+        private SQLite sqlite;
+
         public Repository()
         {
             //
@@ -34,6 +38,14 @@ namespace Repository
             //
             IsLoading = new ReactivePropertySlim<bool>(false);
             IsLoading.AddTo(disposables);
+            // DB
+            sqlite = new SQLite();
+            disposables.Add(sqlite);
+            /*
+            sqlite.Open();
+
+            sqlite.LoadLogFile("oreore", @"D:\home\csharp\TaskTimerPublish\TaskTimer_work\log\log.20211023.txt").Wait();
+            */
         }
 
 
@@ -44,13 +56,15 @@ namespace Repository
                 IsConnect.Value = true;
                 try
                 {
-                    /*
-                    await Task.Run(() =>
+                    var result = await Task.Run(() =>
                     {
                         // DB接続処理
+                        return sqlite.Open(repoPath);
                     });
-                    */
-                    await Task.Delay(100);
+                    if (!result)
+                    {
+                        IsConnect.Value = false;
+                    }
                 }
                 catch
                 {
@@ -68,8 +82,8 @@ namespace Repository
                     await Task.Run(() =>
                     {
                         // DB切断処理
+                        sqlite.Close();
                     });
-                    await Task.Delay(100);
                 }
                 catch
                 {
@@ -80,6 +94,60 @@ namespace Repository
                     IsConnect.Value = false;
                 }
             }
+        }
+
+        public async Task Load(string logPath)
+        {
+            if (IsConnect.Value && !IsLoading.Value)
+            {
+                IsLoading.Value = true;
+                try
+                {
+                    await Task.Run(async () =>
+                    {
+                        // logフォルダを起点にファイル走査
+                        await LoadLogDirRoot(logPath);
+                    });
+                }
+                catch
+                {
+                }
+                finally
+                {
+                    IsLoading.Value = false;
+                }
+            }
+        }
+
+        private async Task<bool> LoadLogDirRoot(string logPath)
+        {
+            bool existLog = false;
+            // 存在チェック
+            if (!Directory.Exists(logPath))
+            {
+                return false;
+            }
+            // 直下フォルダチェック
+            foreach (var child in Directory.EnumerateDirectories(logPath))
+            {
+                // 直下のフォルダ名をperson_idとする
+                var personId = Path.GetFileName(child);
+                // フォルダ内のファイルをログとして取得する
+                existLog = await LoadLogDirChild(child, personId);
+            }
+
+            return existLog;
+        }
+
+        private async Task<bool> LoadLogDirChild(string logDirPath, string personId)
+        {
+            bool existLog = false;
+            foreach (var file in Directory.EnumerateFiles(logDirPath, "*.txt", SearchOption.AllDirectories))
+            {
+                var result = await sqlite.LoadLogFile(personId, logDirPath, file);
+                if (result) existLog = true;
+            }
+            return existLog;
         }
 
 

@@ -33,7 +33,6 @@ namespace TaskTimeAmasser
 
         public ReactiveProperty<DataTable> DB { get; }
 
-        //private SQLite sqlite;
         private Config.IConfig config;
         private Repository.IRepository repository;
 
@@ -46,7 +45,7 @@ namespace TaskTimeAmasser
             
             // Configロード
             config.Load();
-            config.AddTo(Disposable);
+            config.AddTo(Disposables);
             // GUI初期化
             // DBFilePath設定
             // DB接続/切断ボタン表示テキスト
@@ -77,11 +76,11 @@ namespace TaskTimeAmasser
                         DBFileConnectText.Value = "DB切断";
                     }
                 })
-                .AddTo(Disposable);
+                .AddTo(Disposables);
             // DBファイルパス
             DBFilePath = config.DBFilePath
                 .ToReactivePropertySlimAsSynchronized(x => x.Value)
-                .AddTo(Disposable);
+                .AddTo(Disposables);
             // DBファイル指定ダイアログボタンコマンド
             DBFilePathSelect = IsEnableDbCtrl.ToReactiveCommand();
             DBFilePathSelect
@@ -92,7 +91,7 @@ namespace TaskTimeAmasser
                         DBFilePath.Value = result;
                     }
                 })
-                .AddTo(Disposable);
+                .AddTo(Disposables);
             // DB接続/切断ボタンコマンド
             //DBFileConnect = new AsyncReactiveCommand();
             DBFileConnect = repository.IsLoading.Inverse().ToAsyncReactiveCommand();
@@ -109,20 +108,20 @@ namespace TaskTimeAmasser
                         //Console.WriteLine($"{Thread.CurrentThread.ManagedThreadId}: DBFileConnect/WithSubscribe END");
                     }
                 })
-                .AddTo(Disposable);
+                .AddTo(Disposables);
             // LogDir設定
             // Logファイルロードボタン表示テキスト
             LogDirLoadText = new ReactivePropertySlim<string>("ロード");
             // Logファイルロード有効無効
             IsEnableRepoLoad = repository.IsConnect
                 .ToReadOnlyReactivePropertySlim()
-                .AddTo(Disposable);
+                .AddTo(Disposables);
             // Logファイル設定有効無効
             IsEnableRepoCtrl = new ReactivePropertySlim<bool>(true);
             // Logファイル保存ディレクトリパス
             LogDirPath = config.LogDirPath
                 .ToReactivePropertySlimAsSynchronized(x => x.Value)
-                .AddTo(Disposable);
+                .AddTo(Disposables);
             // Logファイル保存ディレクトリ選択ダイアログボタンコマンド
             LogDirPathSelect = IsEnableRepoCtrl.ToReactiveCommand();
             LogDirPathSelect
@@ -133,49 +132,17 @@ namespace TaskTimeAmasser
                         LogDirPath.Value = result;
                     }
                 })
-                .AddTo(Disposable);
+                .AddTo(Disposables);
             // Logファイルロード開始ボタンコマンド
             LogDirLoad = IsEnableRepoLoad
                 .ToAsyncReactiveCommand()
                 .WithSubscribe(async () =>
                 {
-                    repository.IsLoading.Value = true;
                     IsEnableRepoCtrl.Value = false;
-                    await Task.Delay(1000);
+                    await repository.Load(LogDirPath.Value);
                     IsEnableRepoCtrl.Value = true;
-                    repository.IsLoading.Value = false;
                 })
-                .AddTo(Disposable);
-            //DBFilePath = new ReactiveProperty<string>(Config.DBFilePath, mode: ReactivePropertyMode.DistinctUntilChanged);
-            /*
-            DBFilePath.PropertyChanged += (s, e) =>
-            {
-                Config.DBFilePath = DBFilePath.Value;
-            };
-            */
-            /*
-            DBFilePath.Subscribe(x =>
-            {
-                Config.DBFilePath = DBFilePath.Value;
-            });
-            Disposable.Add(DBFilePath);
-            LogDirPath = new ReactivePropertySlim<string>(Config.LogDirPath, mode: ReactivePropertyMode.DistinctUntilChanged);
-            LogDirPath.Subscribe(x =>
-            {
-                Config.LogDirPath = LogDirPath.Value;
-            });
-            Disposable.Add(LogDirPath);
-            LogDirLoad = new ReactivePropertySlim<string>("ロード Logs", mode: ReactivePropertyMode.DistinctUntilChanged);
-            Disposable.Add(LogDirLoad);
-            */
-            // DBロード
-            /*
-            sqlite = new SQLite();
-            Disposable.Add(sqlite);
-            sqlite.Open();
-
-            sqlite.LoadLogFile("oreore", @"D:\home\csharp\TaskTimerPublish\TaskTimer_work\log\log.20211023.txt").Wait();
-            */
+                .AddTo(Disposables);
 
             // DB作成
             var tbl = new DataTable();
@@ -243,7 +210,7 @@ namespace TaskTimeAmasser
 
 
         // Dispose
-        private CompositeDisposable Disposable { get; } = new CompositeDisposable();
+        private CompositeDisposable Disposables { get; } = new CompositeDisposable();
 
         private bool disposedValue = false; // 重複する呼び出しを検出する
         protected virtual void Dispose(bool disposing)
@@ -252,7 +219,7 @@ namespace TaskTimeAmasser
             {
                 if (disposing)
                 {
-                    this.Disposable.Dispose();
+                    this.Disposables.Dispose();
                 }
 
                 disposedValue = true;

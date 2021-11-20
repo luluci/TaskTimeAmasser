@@ -14,36 +14,51 @@ namespace Repository
     class SQLite : IDisposable
     {
         // DBファイル
-        private string outPath;
         private string dbPath;
         // SQLiteインスタンス
         SqliteConnection conn;
 
         public SQLite()
         {
-            outPath = Util.rootPath + @"\";
-            dbPath = outPath + @"db.sqlite3";
         }
 
         public void Dispose()
         {
-            if (conn != null)
+            Close();
+        }
+
+        public bool Open(string dbPath)
+        {
+            // 一応記憶
+            this.dbPath = dbPath;
+            try
             {
-                conn.Dispose();
+                // DB接続
+                if (!File.Exists(dbPath))
+                {
+                    // ファイルが存在しないとき新規作成
+                    InitDb();
+                }
+                else
+                {
+                    // ファイルが存在するときDB接続
+                    Connect();
+                }
+
+                return true;
+            }
+            catch
+            {
+                return false;
             }
         }
 
-        public void Open()
+        public void Close()
         {
-            if (!File.Exists(dbPath))
+            if (conn != null)
             {
-                // ファイルが存在しないとき新規作成
-                InitDb();
-            }
-            else
-            {
-                // ファイルが存在するときDB接続
-                Connect();
+                conn.Dispose();
+                conn = null;
             }
         }
 
@@ -245,14 +260,17 @@ namespace Repository
             }
         }
 
-        public async Task<bool> LoadLogFile(string person, string path)
+        public async Task<bool> LoadLogFile(string person, string rootPath, string filePath)
         {
             SqliteTransaction trans = conn.BeginTransaction();
 
             try
             {
                 // ログファイルを開く
-                var log = new LogReader { Path = path };
+                var log = new LogReader {
+                    RootPath = rootPath,
+                    FilePath = filePath
+                };
                 if (!log.Open())
                 {
                     return false;
@@ -298,7 +316,7 @@ namespace Repository
                 trans.Commit();
                 return true;
             }
-            catch
+            catch (Exception ex)
             {
                 trans.Rollback();
                 return false;
@@ -466,7 +484,7 @@ namespace Repository
                 // 更新日時が古いか登録が無いとき、
                 var query = new StringBuilder();
                 query.Append(@"SELECT source_id, date FROM source_infos");
-                query.Append($@" WHERE person_id = {person_id} AND name = '{log.FileName}'");
+                query.Append($@" WHERE person_id = {person_id} AND name = '{log.FileId}'");
                 query.Append(@";");
                 // クエリ実行
                 using (var command = conn.CreateCommand())
@@ -537,7 +555,7 @@ namespace Repository
                 // クエリ作成
                 var query = new StringBuilder();
                 query.Append($@"INSERT INTO source_infos (person_id, name, date)");
-                query.Append($@" VALUES ('{person_id}', '{log.FileName}', '{log.LastWriteTime.ToBinary()}')");
+                query.Append($@" VALUES ('{person_id}', '{log.FileId}', '{log.LastWriteTime.ToBinary()}')");
                 query.Append(@";");
                 // クエリ実行
                 using (var command = conn.CreateCommand())
@@ -934,7 +952,8 @@ namespace Repository
 
     class LogReader : IDisposable
     {
-        public string Path { get; set; }
+        public string RootPath { get; set; }
+        public string FilePath { get; set; }
         private StreamReader reader;
         private string buff;
         public DateTime LastWriteTime { get; set; }
@@ -942,7 +961,7 @@ namespace Repository
         {
             get { return LastWriteTime.ToBinary(); }
         }
-        public string FileName { get; set; }
+        public string FileId { get; set; }
         public DateTime FileDateTime { get; set; }
 
         public LogReader()
@@ -960,13 +979,19 @@ namespace Repository
 
         public bool Open()
         {
-            if (File.Exists(Path))
+            if (File.Exists(FilePath))
             {
                 GetFileDateTime();
-                var fi = new FileInfo(Path);
-                FileName = fi.Name;
+                var fi = new FileInfo(FilePath);
+                // ログフォルダからのパスを含めて、ログファイルのユニークなIDとする
+                {
+                    var from = new Uri(RootPath.Replace("%", "%25"));
+                    var to = new Uri(FilePath.Replace("%", "%25"));
+                    var rel = from.MakeRelativeUri(to);
+                    FileId = rel.ToString();
+                }
                 LastWriteTime = fi.LastWriteTime;
-                reader = new StreamReader(Path);
+                reader = new StreamReader(FilePath);
                 return true;
             }
             else
@@ -977,7 +1002,7 @@ namespace Repository
 
         private bool GetFileDateTime()
         {
-            var match = Util.RegexFileName.Match(Path);
+            var match = Util.RegexFileName.Match(FilePath);
             if (match.Success)
             {
                 int year, month, day;

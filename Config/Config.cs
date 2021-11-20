@@ -30,11 +30,16 @@ namespace Config
     {
         private CompositeDisposable disposables = new CompositeDisposable();
         private string configFilePath;
+        private string dbDefaultPath;
         public bool PropertyChanged;
         public JsonItem json;
 
         public Config()
         {
+            // DBデフォルトパス
+            string rootPath = System.IO.Path.GetDirectoryName(System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName);
+            dbDefaultPath = rootPath + @"\db.sqlite3";
+
             PropertyChanged = false;
             // パス設定
             configFilePath = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName + @".json";
@@ -102,7 +107,7 @@ namespace Config
                 // ファイルが存在しない
                 json = new JsonItem
                 {
-                    DBFilePath = "",
+                    DBFilePath = dbDefaultPath,
                     LogDirPath = "",
                 };
             }
