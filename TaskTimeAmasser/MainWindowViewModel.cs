@@ -34,9 +34,11 @@ namespace TaskTimeAmasser
         public ReactivePropertySlim<string> LogDirLoadText { get; set; }
         public AsyncReactiveCommand LogDirLoad { get; set; }
         // Query Preset
-        public ReactiveCollection<string> TaskCodeList { get; }
-        public ReactivePropertySlim<int> TaskCodeListSelectIndex { get; set; }
+        public ReactivePropertySlim<string> FilterTaskAlias { get; set; }
+        public ReactiveCollection<string> FilterTaskCode { get; }
+        public ReactivePropertySlim<int> FilterTaskCodeSelectIndex { get; set; }
         public AsyncReactiveCommand QueryPresetGetTaskList { get; }
+        public AsyncReactiveCommand QueryPresetGetCodeSum { get; }
         // Query Manual
         public ReactivePropertySlim<string> QueryText { get; set; }
         public ReactivePropertySlim<bool> EnablePresetUpdateQueryText { get; set; }
@@ -187,12 +189,13 @@ namespace TaskTimeAmasser
                 })
                 .AddTo(Disposables);
             // Query Preset
-            TaskCodeList = new ReactiveCollection<string>();
-            TaskCodeList.Add("<指定なし>");
-            TaskCodeList
+            FilterTaskAlias = new ReactivePropertySlim<string>("");
+            FilterTaskCode = new ReactiveCollection<string>();
+            FilterTaskCode.Add("<指定なし>");
+            FilterTaskCode
                 .AddTo(Disposables);
-            TaskCodeListSelectIndex = new ReactivePropertySlim<int>(0);
-            TaskCodeListSelectIndex
+            FilterTaskCodeSelectIndex = new ReactivePropertySlim<int>(0);
+            FilterTaskCodeSelectIndex
                 .AddTo(Disposables);
             //QueryPresetGetTaskList = new AsyncReactiveCommand();
             QueryPresetGetTaskList = repository.IsConnect
@@ -202,7 +205,23 @@ namespace TaskTimeAmasser
                     DialogMessage.Value = "Query Executing ...";
                     var result = await DialogHost.Show(this.dialog, async delegate (object sender, DialogOpenedEventArgs args)
                     {
-                        await UpdateDbView();
+                        var q = MakeQuerySelectTaskList();
+                        await ExecuteQuery(q);
+                        UpdateDbView();
+                        args.Session.Close(false);
+                    });
+                })
+                .AddTo(Disposables);
+            QueryPresetGetCodeSum = repository.IsConnect
+                .ToAsyncReactiveCommand()
+                .WithSubscribe(async () =>
+                {
+                    DialogMessage.Value = "Query Executing ...";
+                    var result = await DialogHost.Show(this.dialog, async delegate (object sender, DialogOpenedEventArgs args)
+                    {
+                        var q = MakeQuerySelectCodeSum();
+                        await ExecuteQuery(q);
+                        UpdateDbView();
                         args.Session.Close(false);
                     });
                 })
@@ -235,16 +254,16 @@ namespace TaskTimeAmasser
 
         private void UpdateQueryInfo()
         {
-            TaskCodeList.Clear();
-            TaskCodeList.Add("<指定なし>");
+            FilterTaskCode.Clear();
+            FilterTaskCode.Add("<指定なし>");
             foreach (var code in repository.TaskCodeList)
             {
-                TaskCodeList.Add(code);
+                FilterTaskCode.Add(code);
             }
-            TaskCodeListSelectIndex.Value = 0;
+            FilterTaskCodeSelectIndex.Value = 0;
         }
 
-        private async Task UpdateDbView()
+        private string MakeQuerySelectTaskList()
         {
             // クエリ作成
             var query = new StringBuilder();
@@ -252,14 +271,69 @@ namespace TaskTimeAmasser
             query.AppendLine(@"  FROM work_times w, tasks t, task_aliases a");
             query.AppendLine(@"  WHERE w.task_id = t.task_id AND w.task_alias_id = a.task_alias_id");
             query.Append(@";");
-            var qstr = query.ToString();
-            //
+            return query.ToString();
+        }
+
+        private string MakeQuerySelectCodeSum()
+        {
+            // クエリ作成
+            if (FilterTaskAlias.Value.Length == 0)
+            {
+                return MakeQuerySelectCodeSumNoFilter();
+            }
+            else
+            {
+                return MakeQuerySelectCodeSumFilter(FilterTaskAlias.Value);
+            }
+        }
+
+        private string MakeQuerySelectCodeSumNoFilter()
+        {
+            // クエリ作成
+            var query = new StringBuilder();
+            query.AppendLine(@"SELECT s.subtask_code AS コード, Sum(unitbl.time) AS 工数");
+            query.AppendLine(@"FROM subtasks s,");
+            query.AppendLine(@"  (SELECT w.subtask_id AS id, s.subtask_code, w.time AS time FROM subtasks s, work_times w WHERE w.subtask_id = s.subtask_id");
+            query.AppendLine(@"   UNION ALL");
+            query.AppendLine(@"   SELECT s.subtask_id, s.subtask_code, 0 FROM subtasks s) AS unitbl");
+            query.AppendLine(@"WHERE s.subtask_id = unitbl.id");
+            query.AppendLine(@"GROUP BY s.subtask_id");
+            query.Append(@";");
+            return query.ToString();
+        }
+
+        private string MakeQuerySelectCodeSumFilter(string filterTaskAlias)
+        {
+            // クエリ作成
+            var query = new StringBuilder();
+            query.AppendLine(@"SELECT s.subtask_code AS コード, Sum(unitbl.time) AS 工数");
+            query.AppendLine(@"FROM subtasks s,");
+            query.AppendLine(@"  (SELECT intbl.id AS id, intbl.code AS code, intbl.time AS time");
+            query.AppendLine(@"   FROM");
+            query.AppendLine(@"     (SELECT w.subtask_id AS id, s.subtask_code AS code, w.time AS time, w.task_alias_id AS alias_id FROM subtasks s, work_times w WHERE w.subtask_id = s.subtask_id");
+            query.AppendLine(@"      UNION ALL");
+            query.AppendLine(@"      SELECT s.subtask_id, s.subtask_code, 0, -1 FROM subtasks s) AS intbl,");
+            query.AppendLine($@"     (SELECT a.task_alias_id AS alias_id FROM task_aliases a WHERE a.task_alias_name LIKE '{filterTaskAlias}') AS tasktbl");
+            query.AppendLine(@"   WHERE intbl.alias_id IN (tasktbl.alias_id, -1)");
+            query.AppendLine(@"  ) AS unitbl");
+            query.AppendLine(@"WHERE s.subtask_id = unitbl.id");
+            query.AppendLine(@"GROUP BY s.subtask_id");
+            query.Append(@";");
+            return query.ToString();
+        }
+
+        private async Task ExecuteQuery(string query)
+        {
+            // クエリ実行前処理
             if (EnablePresetUpdateQueryText.Value)
             {
-                QueryText.Value = qstr;
+                QueryText.Value = query;
             }
             // クエリ実行
-            await repository.QueryExecute(qstr);
+            await repository.QueryExecute(query);
+        }
+        private void UpdateDbView()
+        {
             // 結果反映
             QueryResult.Value = repository.QueryResult;
             /*
