@@ -17,7 +17,10 @@ namespace Repository
         // DBファイル
         private string dbPath;
         // SQLiteインスタンス
-        SqliteConnection conn;
+        private SqliteConnection conn;
+        // ErrorMessage
+        public string LastQuery { get; set; } = "";
+        public string LastErrorMessage { get; set; } = "";
 
         public SQLite()
         {
@@ -28,30 +31,24 @@ namespace Repository
             Close();
         }
 
-        public bool Open(string dbPath)
+        public async Task<bool> Open(string dbPath)
         {
+            bool result;
             // 一応記憶
             this.dbPath = dbPath;
-            try
+            // DB接続
+            if (!File.Exists(dbPath))
             {
-                // DB接続
-                if (!File.Exists(dbPath))
-                {
-                    // ファイルが存在しないとき新規作成
-                    InitDb();
-                }
-                else
-                {
-                    // ファイルが存在するときDB接続
-                    Connect();
-                }
+                // ファイルが存在しないとき新規作成
+                result = await InitDb();
+            }
+            else
+            {
+                // ファイルが存在するときDB接続
+                result = Connect();
+            }
 
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
+            return result;
         }
 
         public void Close()
@@ -63,20 +60,35 @@ namespace Repository
             }
         }
 
-        private void InitDb()
+        private async Task<bool> InitDb()
         {
+            bool result;
             // DB接続
-            Connect();
-            // TABLE作成
-            CreateDB().Wait();
+            result = Connect();
+            if (result)
+            {
+                // TABLE作成
+                result = await CreateDB();
+            }
+            return result;
         }
 
-        private void Connect()
+        private bool Connect()
         {
-            // DB接続
-            conn = new SqliteConnection($"Data Source={dbPath};Foreign Keys=True");
-            SQLitePCL.raw.SetProvider(new SQLitePCL.SQLite3Provider_e_sqlite3());
-            conn.Open();
+            try
+            {
+                // DB接続
+                conn = new SqliteConnection($"Data Source={dbPath};Foreign Keys=True");
+                SQLitePCL.raw.SetProvider(new SQLitePCL.SQLite3Provider_e_sqlite3());
+                conn.Open();
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                LastErrorMessage = $"DB Connect failed: {ex.Message}";
+                return false;
+            }
         }
 
         private async Task<bool> CreateDB()
@@ -91,39 +103,39 @@ namespace Repository
              *          
              * ・DB構成
              *  persons
-             *      person_id   int     PRIMARY
-             *      name        string
+             *      person_id           int     PRIMARY
+             *      person_name         string
              *  
              *  tasks
-             *      task_id     int     PRIMARY
-             *      code        string
-             *      name        string
+             *      task_id             int     PRIMARY
+             *      task_code           string
+             *      task_name           string
              *  
              *  task_aliases
-             *      alias_id    int     PRIMARY
-             *      name        string
+             *      task_alias_id       int     PRIMARY
+             *      task_alias_name     string
              *  
              *  subtasks
-             *      subtask_id  int     PRIMARY
-             *      code        string
+             *      subtask_id          int     PRIMARY
+             *      subtask_code        string
              *  
              *  subtask_aliases
-             *      alias_id    int     PRIMARY
-             *      name        string
+             *      subtask_alias_id    int     PRIMARY
+             *      subtask_alias_name  string
              *  
              *  items
-             *      item_id     int     PRIMARY
-             *      name        string
+             *      item_id             int     PRIMARY
+             *      item_name           string
              *  
              *  item_aliases
-             *      alias_id    int     PRIMARY
-             *      name        string
+             *      item_alias_id       int     PRIMARY
+             *      item_alias_name     string
              *  
              *  source_infos
-             *      source_id         int     PRIMARY
-             *      person_id         int     foreign key
-             *      name              string
-             *      date              int
+             *      source_id               int     PRIMARY
+             *      person_id               int     foreign key
+             *      source_name             string
+             *      source_lastmodify_date  int
              *  
              *  work_times
              *      work_id           int     PRIMARY
@@ -143,13 +155,13 @@ namespace Repository
              */
             // クエリ作成
             var querys = new LinkedList<string>();
-            querys.AddLast(@"CREATE TABLE persons(person_id INTEGER PRIMARY KEY, name TEXT);");
-            querys.AddLast(@"CREATE TABLE tasks(task_id INTEGER PRIMARY KEY, code TEXT, name TEXT, UNIQUE(code, name));");
-            querys.AddLast(@"CREATE TABLE task_aliases(alias_id INTEGER PRIMARY KEY, name TEXT UNIQUE);");
-            querys.AddLast(@"CREATE TABLE subtasks(subtask_id INTEGER PRIMARY KEY, code TEXT UNIQUE);");
-            querys.AddLast(@"CREATE TABLE subtask_aliases(alias_id INTEGER PRIMARY KEY, name TEXT UNIQUE);");
-            querys.AddLast(@"CREATE TABLE items(item_id INTEGER PRIMARY KEY, name TEXT UNIQUE);");
-            querys.AddLast(@"CREATE TABLE item_aliases(alias_id INTEGER PRIMARY KEY, name TEXT UNIQUE);");
+            querys.AddLast(@"CREATE TABLE persons(person_id INTEGER PRIMARY KEY, person_name TEXT);");
+            querys.AddLast(@"CREATE TABLE tasks(task_id INTEGER PRIMARY KEY, task_code TEXT, task_name TEXT, UNIQUE(task_code, task_name));");
+            querys.AddLast(@"CREATE TABLE task_aliases(task_alias_id INTEGER PRIMARY KEY, task_alias_name TEXT UNIQUE);");
+            querys.AddLast(@"CREATE TABLE subtasks(subtask_id INTEGER PRIMARY KEY, subtask_code TEXT UNIQUE);");
+            querys.AddLast(@"CREATE TABLE subtask_aliases(subtask_alias_id INTEGER PRIMARY KEY, subtask_alias_name TEXT UNIQUE);");
+            querys.AddLast(@"CREATE TABLE items(item_id INTEGER PRIMARY KEY, item_name TEXT UNIQUE);");
+            querys.AddLast(@"CREATE TABLE item_aliases(item_alias_id INTEGER PRIMARY KEY, item_alias_name TEXT UNIQUE);");
             // source_infosテーブル作成
             var q = new StringBuilder();
             q.Append(@"CREATE TABLE source_infos(");
@@ -157,11 +169,11 @@ namespace Repository
             q.Append(@", ");
             q.Append(@"person_id INTEGER");
             q.Append(@", ");
-            q.Append(@"name TEXT");
+            q.Append(@"source_name TEXT");
             q.Append(@", ");
-            q.Append(@"date INTEGER");
+            q.Append(@"source_lastmodify_date INTEGER");
             q.Append(@", ");
-            q.Append(@"UNIQUE(name, date)");
+            q.Append(@"UNIQUE(source_name, source_lastmodify_date)");
             q.Append(@", ");
             q.Append(@"FOREIGN KEY(person_id) REFERENCES persons(person_id)");
             q.Append(@");");
@@ -201,15 +213,15 @@ namespace Repository
             q.Append(@", ");
             q.Append(@"FOREIGN KEY(task_id) REFERENCES tasks(task_id)");
             q.Append(@", ");
-            q.Append(@"FOREIGN KEY(task_alias_id) REFERENCES task_aliases(alias_id)");
+            q.Append(@"FOREIGN KEY(task_alias_id) REFERENCES task_aliases(task_alias_id)");
             q.Append(@", ");
             q.Append(@"FOREIGN KEY(subtask_id) REFERENCES subtasks(subtask_id)");
             q.Append(@", ");
-            q.Append(@"FOREIGN KEY(subtask_alias_id) REFERENCES subtask_aliases(alias_id)");
+            q.Append(@"FOREIGN KEY(subtask_alias_id) REFERENCES subtask_aliases(subtask_alias_id)");
             q.Append(@", ");
             q.Append(@"FOREIGN KEY(item_id) REFERENCES items(item_id)");
             q.Append(@", ");
-            q.Append(@"FOREIGN KEY(item_alias_id) REFERENCES item_aliases(alias_id)");
+            q.Append(@"FOREIGN KEY(item_alias_id) REFERENCES item_aliases(item_alias_id)");
             q.Append(@", ");
             q.Append(@"FOREIGN KEY(source_id) REFERENCES source_infos(source_id)");
             q.Append(@");");
@@ -230,6 +242,7 @@ namespace Repository
             {
                 foreach (var q in querys)
                 {
+                    LastQuery = q;
                     using (var command = conn.CreateCommand())
                     {
                         command.Transaction = trans;
@@ -242,9 +255,10 @@ namespace Repository
                 trans.Commit();
                 return true;
             }
-            catch
+            catch (Exception ex)
             {
                 trans.Rollback();
+                LastErrorMessage = $"Query Failed: {ex.Message}\r\nLastQuery: {LastQuery}";
                 return false;
             }
         }
@@ -320,6 +334,7 @@ namespace Repository
             catch (Exception ex)
             {
                 trans.Rollback();
+                LastErrorMessage = $"Query Failed: {ex.Message}\r\nLastQuery: {LastQuery}";
                 return false;
             }
         }
@@ -409,12 +424,13 @@ namespace Repository
                 // クエリ作成
                 var query = new StringBuilder();
                 query.Append(@"SELECT person_id FROM persons");
-                query.Append($@" WHERE name = '{person}'");
+                query.Append($@" WHERE person_name = '{person}'");
                 query.Append(@";");
+                LastQuery = query.ToString();
                 // クエリ実行
                 using (var command = conn.CreateCommand())
                 {
-                    command.CommandText = query.ToString();
+                    command.CommandText = LastQuery;
                     using (var reader = command.ExecuteReader())
                     {
                         var result = new LinkedList<int>();
@@ -452,13 +468,14 @@ namespace Repository
             {
                 // クエリ作成
                 var query = new StringBuilder();
-                query.Append($@"INSERT INTO persons (name) VALUES ('{person}')");
+                query.Append($@"INSERT INTO persons (person_name) VALUES ('{person}')");
                 query.Append(@";");
+                LastQuery = query.ToString();
                 // クエリ実行
                 using (var command = conn.CreateCommand())
                 {
                     command.Transaction = trans;
-                    command.CommandText = query.ToString();
+                    command.CommandText = LastQuery;
                     command.ExecuteNonQuery();
                     // last_insert_rowid() がperson_idになってるはず
                     return await GetLastInsertRowId(trans);
@@ -485,13 +502,14 @@ namespace Repository
                 // 更新日時が同じか新しいログが登録済みなら何もしない
                 // 更新日時が古いか登録が無いとき、
                 var query = new StringBuilder();
-                query.Append(@"SELECT source_id, date FROM source_infos");
-                query.Append($@" WHERE person_id = {person_id} AND name = '{log.FileId}'");
+                query.Append(@"SELECT source_id, source_lastmodify_date FROM source_infos");
+                query.Append($@" WHERE person_id = {person_id} AND source_name = '{log.FileId}'");
                 query.Append(@";");
+                LastQuery = query.ToString();
                 // クエリ実行
                 using (var command = conn.CreateCommand())
                 {
-                    command.CommandText = query.ToString();
+                    command.CommandText = LastQuery;
                     using (var reader = await command.ExecuteReaderAsync())
                     {
                         var check = SourceCheck.NewAdd;
@@ -503,7 +521,7 @@ namespace Repository
                             // 更新日時が同じか新しい場合は更新不要
                             // 更新日時が古い場合は更新する
                             // ここで1件もヒットしないならデータが無いので新規登録
-                            var dbDate = log.Serial2DateTime((long)reader["date"]);
+                            var dbDate = log.Serial2DateTime((long)reader["source_lastmodify_date"]);
                             if (log.LastWriteTime.CompareTo(dbDate) > 0)
                             {
                                 // LastWriteTimeの方が新しいので更新
@@ -533,14 +551,15 @@ namespace Repository
                 // クエリ作成
                 var query = new StringBuilder();
                 query.Append($@"UPDATE source_infos");
-                query.Append($@" SET date = {log.LastWriteTime.ToBinary()}");
+                query.Append($@" SET source_lastmodify_date = {log.LastWriteTime.ToBinary()}");
                 query.Append($@" WHERE source_id = {sourceId}");
                 query.Append(@";");
+                LastQuery = query.ToString();
                 // クエリ実行
                 using (var command = conn.CreateCommand())
                 {
                     command.Transaction = trans;
-                    command.CommandText = query.ToString();
+                    command.CommandText = LastQuery;
                     return await command.ExecuteNonQueryAsync();
                 }
             }
@@ -556,14 +575,15 @@ namespace Repository
             {
                 // クエリ作成
                 var query = new StringBuilder();
-                query.Append($@"INSERT INTO source_infos (person_id, name, date)");
+                query.Append($@"INSERT INTO source_infos (person_id, source_name, source_lastmodify_date)");
                 query.Append($@" VALUES ('{person_id}', '{log.FileId}', '{log.LastWriteTime.ToBinary()}')");
                 query.Append(@";");
+                LastQuery = query.ToString();
                 // クエリ実行
                 using (var command = conn.CreateCommand())
                 {
                     command.Transaction = trans;
-                    command.CommandText = query.ToString();
+                    command.CommandText = LastQuery;
                     command.ExecuteNonQuery();
                     // last_insert_rowid() がidになってるはず
                     return await GetLastInsertRowId(trans);
@@ -582,13 +602,14 @@ namespace Repository
                 // クエリ作成
                 var query = new StringBuilder();
                 query.Append($@"SELECT task_id FROM tasks");
-                query.Append($@" WHERE code = '{item.Code}' AND name = '{item.Name}'");
+                query.Append($@" WHERE task_code = '{item.Code}' AND task_name = '{item.Name}'");
                 query.Append(@";");
+                LastQuery = query.ToString();
                 // クエリ実行
                 // 登録チェック
                 using (var command = conn.CreateCommand())
                 {
-                    command.CommandText = query.ToString();
+                    command.CommandText = LastQuery;
                     if (trans != null) command.Transaction = trans;
                     var id = await command.ExecuteScalarAsync();
                     if (id != null) return (int)(long)(id);
@@ -607,14 +628,15 @@ namespace Repository
             {
                 // クエリ作成
                 var query = new StringBuilder();
-                query.Append($@"INSERT INTO tasks (code, name)");
+                query.Append($@"INSERT INTO tasks (task_code, task_name)");
                 query.Append($@" VALUES ('{item.Code}', '{item.Name}')");
                 query.Append(@";");
+                LastQuery = query.ToString();
                 // クエリ実行
                 using (var command = conn.CreateCommand())
                 {
                     command.Transaction = trans;
-                    command.CommandText = query.ToString();
+                    command.CommandText = LastQuery;
                     command.ExecuteNonQuery();
                     // last_insert_rowid() がidになってるはず
                     return await GetLastInsertRowId(trans);
@@ -632,14 +654,15 @@ namespace Repository
             {
                 // クエリ作成
                 var query = new StringBuilder();
-                query.Append($@"SELECT alias_id FROM task_aliases");
-                query.Append($@" WHERE name = '{item.Alias}'");
+                query.Append($@"SELECT task_alias_id FROM task_aliases");
+                query.Append($@" WHERE task_alias_name = '{item.Alias}'");
                 query.Append(@";");
+                LastQuery = query.ToString();
                 // クエリ実行
                 // 登録チェック
                 using (var command = conn.CreateCommand())
                 {
-                    command.CommandText = query.ToString();
+                    command.CommandText = LastQuery;
                     if (trans != null) command.Transaction = trans;
                     var id = await command.ExecuteScalarAsync();
                     if (id != null) return (int)(long)(id);
@@ -658,14 +681,15 @@ namespace Repository
             {
                 // クエリ作成
                 var query = new StringBuilder();
-                query.Append($@"INSERT INTO task_aliases (name)");
+                query.Append($@"INSERT INTO task_aliases (task_alias_name)");
                 query.Append($@" VALUES ('{item.Alias}')");
                 query.Append(@";");
+                LastQuery = query.ToString();
                 // クエリ実行
                 using (var command = conn.CreateCommand())
                 {
                     command.Transaction = trans;
-                    command.CommandText = query.ToString();
+                    command.CommandText = LastQuery;
                     command.ExecuteNonQuery();
                     // last_insert_rowid() がsource_idになってるはず
                     return await GetLastInsertRowId(trans);
@@ -684,13 +708,14 @@ namespace Repository
                 // クエリ作成
                 var query = new StringBuilder();
                 query.Append($@"SELECT subtask_id FROM subtasks");
-                query.Append($@" WHERE code = '{item.SubCode}'");
+                query.Append($@" WHERE subtask_code = '{item.SubCode}'");
                 query.Append(@";");
+                LastQuery = query.ToString();
                 // クエリ実行
                 // 登録チェック
                 using (var command = conn.CreateCommand())
                 {
-                    command.CommandText = query.ToString();
+                    command.CommandText = LastQuery;
                     if (trans != null) command.Transaction = trans;
                     var id = await command.ExecuteScalarAsync();
                     if (id != null) return (int)(long)(id);
@@ -709,14 +734,15 @@ namespace Repository
             {
                 // クエリ作成
                 var query = new StringBuilder();
-                query.Append($@"INSERT INTO subtasks (code)");
+                query.Append($@"INSERT INTO subtasks (subtask_code)");
                 query.Append($@" VALUES ('{item.SubCode}')");
                 query.Append(@";");
+                LastQuery = query.ToString();
                 // クエリ実行
                 using (var command = conn.CreateCommand())
                 {
                     command.Transaction = trans;
-                    command.CommandText = query.ToString();
+                    command.CommandText = LastQuery;
                     command.ExecuteNonQuery();
                     // last_insert_rowid() がsource_idになってるはず
                     return await GetLastInsertRowId(trans);
@@ -734,14 +760,15 @@ namespace Repository
             {
                 // クエリ作成
                 var query = new StringBuilder();
-                query.Append($@"SELECT alias_id FROM subtask_aliases");
-                query.Append($@" WHERE name = '{item.SubAlias}'");
+                query.Append($@"SELECT subtask_alias_id FROM subtask_aliases");
+                query.Append($@" WHERE subtask_alias_name = '{item.SubAlias}'");
                 query.Append(@";");
+                LastQuery = query.ToString();
                 // クエリ実行
                 // 登録チェック
                 using (var command = conn.CreateCommand())
                 {
-                    command.CommandText = query.ToString();
+                    command.CommandText = LastQuery;
                     if (trans != null) command.Transaction = trans;
                     var id = await command.ExecuteScalarAsync();
                     if (id != null) return (int)(long)(id);
@@ -760,14 +787,15 @@ namespace Repository
             {
                 // クエリ作成
                 var query = new StringBuilder();
-                query.Append($@"INSERT INTO subtask_aliases (name)");
+                query.Append($@"INSERT INTO subtask_aliases (subtask_alias_name)");
                 query.Append($@" VALUES ('{item.SubAlias}')");
                 query.Append(@";");
+                LastQuery = query.ToString();
                 // クエリ実行
                 using (var command = conn.CreateCommand())
                 {
                     command.Transaction = trans;
-                    command.CommandText = query.ToString();
+                    command.CommandText = LastQuery;
                     command.ExecuteNonQuery();
                     // last_insert_rowid() がsource_idになってるはず
                     return await GetLastInsertRowId(trans);
@@ -786,13 +814,14 @@ namespace Repository
                 // クエリ作成
                 var query = new StringBuilder();
                 query.Append($@"SELECT item_id FROM items");
-                query.Append($@" WHERE name = '{item.Item}'");
+                query.Append($@" WHERE item_name = '{item.Item}'");
                 query.Append(@";");
+                LastQuery = query.ToString();
                 // クエリ実行
                 // 登録チェック
                 using (var command = conn.CreateCommand())
                 {
-                    command.CommandText = query.ToString();
+                    command.CommandText = LastQuery;
                     if (trans != null) command.Transaction = trans;
                     var id = await command.ExecuteScalarAsync();
                     if (id != null) return (int)(long)(id);
@@ -811,14 +840,15 @@ namespace Repository
             {
                 // クエリ作成
                 var query = new StringBuilder();
-                query.Append($@"INSERT INTO items (name)");
+                query.Append($@"INSERT INTO items (item_name)");
                 query.Append($@" VALUES ('{item.Item}')");
                 query.Append(@";");
+                LastQuery = query.ToString();
                 // クエリ実行
                 using (var command = conn.CreateCommand())
                 {
                     command.Transaction = trans;
-                    command.CommandText = query.ToString();
+                    command.CommandText = LastQuery;
                     command.ExecuteNonQuery();
                     // last_insert_rowid() がidになってるはず
                     return await GetLastInsertRowId(trans);
@@ -836,14 +866,15 @@ namespace Repository
             {
                 // クエリ作成
                 var query = new StringBuilder();
-                query.Append($@"SELECT alias_id FROM item_aliases");
-                query.Append($@" WHERE name = '{item.ItemAlias}'");
+                query.Append($@"SELECT item_alias_id FROM item_aliases");
+                query.Append($@" WHERE item_alias_name = '{item.ItemAlias}'");
                 query.Append(@";");
+                LastQuery = query.ToString();
                 // クエリ実行
                 // 登録チェック
                 using (var command = conn.CreateCommand())
                 {
-                    command.CommandText = query.ToString();
+                    command.CommandText = LastQuery;
                     if (trans != null) command.Transaction = trans;
                     var id = await command.ExecuteScalarAsync();
                     if (id != null) return (int)(long)(id);
@@ -862,14 +893,15 @@ namespace Repository
             {
                 // クエリ作成
                 var query = new StringBuilder();
-                query.Append($@"INSERT INTO item_aliases (name)");
+                query.Append($@"INSERT INTO item_aliases (item_alias_name)");
                 query.Append($@" VALUES ('{item.ItemAlias}')");
                 query.Append(@";");
+                LastQuery = query.ToString();
                 // クエリ実行
                 using (var command = conn.CreateCommand())
                 {
                     command.Transaction = trans;
-                    command.CommandText = query.ToString();
+                    command.CommandText = LastQuery;
                     command.ExecuteNonQuery();
                     // last_insert_rowid() がidになってるはず
                     return await GetLastInsertRowId(trans);
@@ -895,11 +927,12 @@ namespace Repository
                 query.Append($@"INSERT INTO work_times (person_id, task_id, task_alias_id, subtask_id, subtask_alias_id, item_id, item_alias_id, source_id, date, year, month, day, time)");
                 query.Append($@" VALUES ('{person_id}', '{task_id}', '{task_alias_id}', '{subtask_id}', '{subtask_alias_id}', '{item_id}', '{item_alias_id}', '{source_id}', '{date}', '{year}', '{month}', '{day}', '{item.Time}')");
                 query.Append(@";");
+                LastQuery = query.ToString();
                 // クエリ実行
                 using (var command = conn.CreateCommand())
                 {
                     command.Transaction = trans;
-                    command.CommandText = query.ToString();
+                    command.CommandText = LastQuery;
                     command.ExecuteNonQuery();
                     // last_insert_rowid() がsource_idになってるはず
                     return await GetLastInsertRowId(trans);
@@ -920,11 +953,12 @@ namespace Repository
                 query.Append($@"DELETE FROM work_times");
                 query.Append($@" WHERE source_id = '{sourceId}'");
                 query.Append(@";");
+                LastQuery = query.ToString();
                 // クエリ実行
                 // 登録チェック
                 using (var command = conn.CreateCommand())
                 {
-                    command.CommandText = query.ToString();
+                    command.CommandText = LastQuery;
                     if (trans != null) command.Transaction = trans;
                     return await command.ExecuteNonQueryAsync();
                 }
@@ -942,26 +976,75 @@ namespace Repository
             {
                 // クエリ作成
                 var query = new StringBuilder();
-                query.Append(@"SELECT code FROM tasks");
-                //query.Append($@" WHERE name = '{person}'");
+                query.Append(@"SELECT task_code FROM tasks");
                 query.Append(@";");
+                LastQuery = query.ToString();
                 // クエリ実行
                 using (var command = conn.CreateCommand())
                 {
-                    command.CommandText = query.ToString();
+                    command.CommandText = LastQuery;
                     using (var reader = await command.ExecuteReaderAsync())
                     {
                         // 結果読み出し
                         while (reader.Read() == true)
                         {
-                            list.Add((T)reader["code"]);
+                            list.Add((T)reader["task_code"]);
                         }
                     }
                 }
+
                 return true;
             }
-            catch
+            catch (Exception ex)
             {
+                LastErrorMessage = $"Query Failed: {ex.Message}";
+                return false;
+            }
+        }
+
+        public async Task<bool> QueryGetSelectResult(DataTable tbl, string query)
+        {
+            try
+            {
+                bool initCol = false;
+                LastQuery = query;
+                // クエリ実行
+                using (var command = conn.CreateCommand())
+                {
+                    command.CommandText = query;
+                    using (var reader = await command.ExecuteReaderAsync())
+                    {
+                        // 結果読み出し
+                        while (reader.Read() == true)
+                        {
+                            var count = reader.FieldCount;
+                            // 列作成
+                            if (!initCol)
+                            {
+                                initCol = true;
+                                for (int i = 0; i < count; i++)
+                                {
+                                    tbl.Columns.Add(reader.GetName(i));
+                                }
+                            }
+                            // 行作成
+                            int idx = 0;
+                            var row = tbl.NewRow();
+                            foreach (DataColumn col in tbl.Columns)
+                            {
+                                row[col] = reader.GetValue(idx);
+                                idx++;
+                            }
+                            tbl.Rows.Add(row);
+                        }
+                    }
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                LastErrorMessage = $"Query Failed: {ex.Message}";
                 return false;
             }
         }

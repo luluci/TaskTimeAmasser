@@ -44,7 +44,7 @@
                 <Button Grid.Row="1" Grid.Column="2" Command="{Binding LogDirLoad}" Content="{Binding LogDirLoadText.Value}" Margin="10,10" />
             </Grid>
             <Grid Background="#FFD6EAFB" Margin="0,104,0,167">
-                <DataGrid ItemsSource="{Binding DB.Value}" IsReadOnly="True" Margin="258,10,10,10">
+                <DataGrid ItemsSource="{Binding QueryResult.Value}" IsReadOnly="True" Margin="258,10,10,10">
                     <!--
                             <DataGrid.RowStyle>
                                 <Style TargetType="DataGridRow">
@@ -64,7 +64,7 @@
                         <ColumnDefinition Width="70"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Task" FontFamily="Meiryo UI" TextAlignment="Center" Margin="0,8,0,0"/>
+                    <TextBlock Grid.Column="0" Text="TaskAlias&#10;Filter" FontFamily="Meiryo UI" TextAlignment="Center" Margin="0,0,0,0"/>
                     <TextBox Grid.Column="1" Margin="0,0,10,0"/>
                 </Grid>
                 <Grid Margin="0,73,0,0" Height="30" VerticalAlignment="Top" HorizontalAlignment="Left" Width="253">
@@ -73,13 +73,15 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0" Text="Code" FontFamily="Meiryo UI" TextAlignment="Center" Margin="0,8,0,0"/>
-                    <ComboBox Grid.Column="1" ItemsSource="{Binding TaskCodeList}" SelectedIndex="{Binding TaskCodeListSelectIndex.Value}" Margin="0,0,10,0" />
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding TaskCodeList}" SelectedIndex="{Binding TaskCodeListSelectIndex.Value}" Margin="0,0,10,0" Padding="5,7,0,0" />
                 </Grid>
-                <Button Content="Task一覧" HorizontalAlignment="Left" Height="29" Margin="10,128,0,0" VerticalAlignment="Top" Width="240"/>
+                <Button Command="{Binding QueryPresetGetTaskList}" Content="Task一覧" HorizontalAlignment="Left" Height="29" Margin="10,128,0,0" VerticalAlignment="Top" Width="240"/>
                 <Button Content="SubKey/Time一覧" HorizontalAlignment="Left" Height="29" Margin="10,170,0,0" VerticalAlignment="Top" Width="240"/>
             </Grid>
             <Grid Background="#FFE9FFDD" Height="167" VerticalAlignment="Bottom">
                 <TextBlock HorizontalAlignment="Left" Height="24" Margin="10,10,0,0" TextWrapping="Wrap" Text="SQL Manual" VerticalAlignment="Top" Width="227" TextDecorations="Underline" FontSize="14"/>
+                <TextBox Height="118" Margin="260,39,10,0" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" AcceptsReturn="True" Text="{Binding QueryText.Value}" Style="{StaticResource MaterialDesignFilledTextBox}" materialDesign:HintAssist.Hint="SQL Query"  VerticalAlignment="Top" FontSize="14"/>
+                <CheckBox Content="Presetクエリを実行時に上書きする" IsChecked="{Binding EnablePresetUpdateQueryText.Value}" HorizontalAlignment="Left" Height="26" Margin="260,10,0,0" VerticalAlignment="Top" Width="210"/>
             </Grid>
 
         </Grid>

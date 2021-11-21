@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Data;
 using System.IO;
 using System.Linq;
 using System.Reactive.Disposables;
@@ -17,23 +18,29 @@ namespace Repository
         ReactivePropertySlim<bool> IsConnect { get; set; }
         ReactivePropertySlim<bool> IsLoading { get; set; }
         ObservableCollection<string> TaskCodeList { get; set; }
+        DataTable QueryResult { get; set; }
+        string ErrorMessage { get; set; }
 
         Task Connect(string repoPath);
         Task Close();
-        Task Load(string logPath);
+        Task<bool> Load(string logPath);
         Task Update();
+        Task QueryExecute(string query);
     }
 
     public class Repository : IRepository
     {
         private CompositeDisposable disposables = new CompositeDisposable();
+        private SQLite sqlite;
 
         public ReactivePropertySlim<bool> IsConnect { get; set; }
         public ReactivePropertySlim<bool> IsLoading { get; set; }
 
         public ObservableCollection<string> TaskCodeList { get; set; } = new ObservableCollection<string>();
 
-        private SQLite sqlite;
+        public DataTable QueryResult { get; set; }
+        public string ErrorMessage { get; set; }
+
 
         public Repository()
         {
@@ -43,6 +50,8 @@ namespace Repository
             //
             IsLoading = new ReactivePropertySlim<bool>(false);
             IsLoading.AddTo(disposables);
+            //
+            QueryResult = new DataTable();
             // DB
             sqlite = new SQLite();
             disposables.Add(sqlite);
@@ -66,8 +75,9 @@ namespace Repository
                         IsConnect.Value = false;
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    ErrorMessage = ex.Message;
                     IsConnect.Value = false;
                 }
             }
@@ -96,27 +106,31 @@ namespace Repository
             }
         }
 
-        public async Task Load(string logPath)
+        public async Task<bool> Load(string logPath)
         {
+            bool result = false;
             if (IsConnect.Value && !IsLoading.Value)
             {
                 IsLoading.Value = true;
                 try
                 {
-                    await Task.Run(async () =>
+                    result = await Task.Run(async () =>
                     {
                         // logフォルダを起点にファイル走査
-                        await LoadLogDirRoot(logPath);
+                        return await LoadLogDirRoot(logPath);
                     });
                 }
                 catch
                 {
+                    result = false;
                 }
                 finally
                 {
                     IsLoading.Value = false;
                 }
             }
+            ErrorMessage = sqlite.LastErrorMessage;
+            return result;
         }
 
         private async Task<bool> LoadLogDirRoot(string logPath)
@@ -154,6 +168,13 @@ namespace Repository
         {
             TaskCodeList = new ObservableCollection<string>();
             var result = await sqlite.QueryGetTaskCode(TaskCodeList);
+        }
+
+        public async Task QueryExecute(string query)
+        {
+            //QueryResult.Clear();
+            QueryResult = new DataTable();
+            var result = await sqlite.QueryGetSelectResult(QueryResult, query);
         }
 
         #region IDisposable Support

@@ -34,14 +34,17 @@ namespace TaskTimeAmasser
         public ReactivePropertySlim<string> LogDirLoadText { get; set; }
         public AsyncReactiveCommand LogDirLoad { get; set; }
         // Query Preset
-        //public ObservableCollection<string> TaskCodeList { get { return repository.TaskCodeList; } }
         public ReactiveCollection<string> TaskCodeList { get; }
         public ReactivePropertySlim<int> TaskCodeListSelectIndex { get; set; }
-        //
-        public ReactivePropertySlim<string> DialogMessage
-        { get; set; }
-
-        public ReactiveProperty<DataTable> DB { get; }
+        public AsyncReactiveCommand QueryPresetGetTaskList { get; }
+        // Query Manual
+        public ReactivePropertySlim<string> QueryText { get; set; }
+        public ReactivePropertySlim<bool> EnablePresetUpdateQueryText { get; set; }
+        // QueryResult領域
+        public ReactiveProperty<DataTable> QueryResult { get; }
+        DataTable dbNotify;
+        // ダイアログ操作
+        public ReactivePropertySlim<string> DialogMessage { get; set; }
 
         private Config.IConfig config;
         private Repository.IRepository repository;
@@ -121,6 +124,15 @@ namespace TaskTimeAmasser
                             await repository.Connect(config.DBFilePath.Value);
                             await repository.Update();
                             UpdateQueryInfo();
+                            // Message通知
+                            if (repository.IsConnect.Value)
+                            {
+                                UpdateQueryResultNotify("DB接続しました");
+                            }
+                            else
+                            {
+                                UpdateQueryResultNotify($"DB接続失敗しました:\r\n{repository.ErrorMessage}");
+                            }
                             //Console.WriteLine($"{Thread.CurrentThread.ManagedThreadId}: DBFileConnect/WithSubscribe END");
                             args.Session.Close(false);
                         });
@@ -158,9 +170,17 @@ namespace TaskTimeAmasser
                 {
                     IsEnableRepoCtrl.Value = false;
                     DialogMessage.Value = "Loading LogFiles ...";
-                    var result = await DialogHost.Show(this.dialog, async delegate (object sender, DialogOpenedEventArgs args)
+                    var dlgresult = await DialogHost.Show(this.dialog, async delegate (object sender, DialogOpenedEventArgs args)
                     {
-                        await repository.Load(LogDirPath.Value);
+                        var result = await repository.Load(LogDirPath.Value);
+                        if (result)
+                        {
+                            UpdateQueryResultNotify("Logファイル取り込み正常終了");
+                        }
+                        else
+                        {
+                            UpdateQueryResultNotify($"Logファイル取り込み失敗:\r\n{repository.ErrorMessage}");
+                        }
                         args.Session.Close(false);
                     });
                     IsEnableRepoCtrl.Value = true;
@@ -174,29 +194,43 @@ namespace TaskTimeAmasser
             TaskCodeListSelectIndex = new ReactivePropertySlim<int>(0);
             TaskCodeListSelectIndex
                 .AddTo(Disposables);
+            //QueryPresetGetTaskList = new AsyncReactiveCommand();
+            QueryPresetGetTaskList = repository.IsConnect
+                .ToAsyncReactiveCommand()
+                .WithSubscribe(async () =>
+                {
+                    DialogMessage.Value = "Query Executing ...";
+                    var result = await DialogHost.Show(this.dialog, async delegate (object sender, DialogOpenedEventArgs args)
+                    {
+                        await UpdateDbView();
+                        args.Session.Close(false);
+                    });
+                })
+                .AddTo(Disposables);
+            // Query Manual
+            QueryText = new ReactivePropertySlim<string>("");
+            EnablePresetUpdateQueryText = new ReactivePropertySlim<bool>(true);
             //
             DialogMessage = new ReactivePropertySlim<string>("");
             DialogMessage.AddTo(Disposables);
 
-            // DB作成
-            var tbl = new DataTable();
-            for (int i = 0; i<3; i++)
+            // QueryResult領域
+            // メッセージ表示用DataTable作成
+            dbNotify = new DataTable();
+            dbNotify.Columns.Add("Message");
             {
-                tbl.Columns.Add(i + "列目");
+                var row = dbNotify.NewRow();
+                row[0] = "<DB未接続>";
+                dbNotify.Rows.Add(row);
             }
-            for (int i = 0; i < 10; i++)
-            {
-                var row = tbl.NewRow();
-                foreach (DataColumn col in tbl.Columns)
-                {
-                    row[col] = col.ColumnName + "-" + i + "行目";
-                }
-                tbl.Rows.Add(row);
-            }
-
             // Reactive設定
-            DB = new ReactiveProperty<DataTable>(tbl);
-            //DB.Value = tbl;
+            QueryResult = new ReactiveProperty<DataTable>(dbNotify);
+        }
+
+        private void UpdateQueryResultNotify(string msg)
+        {
+            dbNotify.Rows[0][0] = msg;
+            QueryResult.Value = dbNotify;
         }
 
         private void UpdateQueryInfo()
@@ -210,9 +244,40 @@ namespace TaskTimeAmasser
             TaskCodeListSelectIndex.Value = 0;
         }
 
-        private void UpdateDbView()
+        private async Task UpdateDbView()
         {
-
+            // クエリ作成
+            var query = new StringBuilder();
+            query.AppendLine(@"SELECT DISTINCT t.task_code, t.task_name, a.task_alias_name");
+            query.AppendLine(@"  FROM work_times w, tasks t, task_aliases a");
+            query.AppendLine(@"  WHERE w.task_id = t.task_id AND w.task_alias_id = a.task_alias_id");
+            query.Append(@";");
+            var qstr = query.ToString();
+            //
+            if (EnablePresetUpdateQueryText.Value)
+            {
+                QueryText.Value = qstr;
+            }
+            // クエリ実行
+            await repository.QueryExecute(qstr);
+            // 結果反映
+            QueryResult.Value = repository.QueryResult;
+            /*
+            DB.Value.Clear();
+            // Column作成
+            foreach (DataColumn col in repository.QueryResult.Columns)
+            {
+                DB.Value.Columns.Add(col.ColumnName);
+            }
+            // Row作成
+            foreach (DataRow row in repository.QueryResult.Rows)
+            {
+                var new_row = DB.Value.NewRow();
+                foreach (DataColumn col in repository.QueryResult.Columns)
+                {
+                }
+            }
+            */
         }
 
         private string DirSelectDialog(string initDir)
