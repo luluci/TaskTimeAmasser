@@ -24,8 +24,8 @@ namespace Repository
         Task Connect(string repoPath);
         Task Close();
         Task<bool> Load(string logPath);
-        Task Update();
-        Task QueryExecute(string query);
+        Task<bool> Update();
+        Task<bool> QueryExecute(string query);
     }
 
     public class Repository : IRepository
@@ -164,17 +164,21 @@ namespace Repository
             return existLog;
         }
 
-        public async Task Update()
+        public async Task<bool> Update()
         {
             TaskCodeList = new ObservableCollection<string>();
             var result = await sqlite.QueryGetTaskCode(TaskCodeList);
+            ErrorMessage = sqlite.LastErrorMessage;
+            return result;
         }
 
-        public async Task QueryExecute(string query)
+        public async Task<bool> QueryExecute(string query)
         {
             //QueryResult.Clear();
             QueryResult = new DataTable();
             var result = await sqlite.QueryGetSelectResult(QueryResult, query);
+            ErrorMessage = sqlite.LastErrorMessage;
+            return result;
         }
 
         #region IDisposable Support

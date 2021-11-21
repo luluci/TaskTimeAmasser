@@ -42,6 +42,7 @@ namespace TaskTimeAmasser
         // Query Manual
         public ReactivePropertySlim<string> QueryText { get; set; }
         public ReactivePropertySlim<bool> EnablePresetUpdateQueryText { get; set; }
+        public AsyncReactiveCommand QueryManualExecute { get; }
         // QueryResult領域
         public ReactiveProperty<DataTable> QueryResult { get; }
         DataTable dbNotify;
@@ -206,8 +207,8 @@ namespace TaskTimeAmasser
                     var result = await DialogHost.Show(this.dialog, async delegate (object sender, DialogOpenedEventArgs args)
                     {
                         var q = MakeQuerySelectTaskList();
-                        await ExecuteQuery(q);
-                        UpdateDbView();
+                        var r = await ExecuteQuery(q);
+                        UpdateDbView(r);
                         args.Session.Close(false);
                     });
                 })
@@ -220,8 +221,8 @@ namespace TaskTimeAmasser
                     var result = await DialogHost.Show(this.dialog, async delegate (object sender, DialogOpenedEventArgs args)
                     {
                         var q = MakeQuerySelectCodeSum();
-                        await ExecuteQuery(q);
-                        UpdateDbView();
+                        var r = await ExecuteQuery(q);
+                        UpdateDbView(r);
                         args.Session.Close(false);
                     });
                 })
@@ -229,6 +230,22 @@ namespace TaskTimeAmasser
             // Query Manual
             QueryText = new ReactivePropertySlim<string>("");
             EnablePresetUpdateQueryText = new ReactivePropertySlim<bool>(true);
+            QueryManualExecute = repository.IsConnect
+                .ToAsyncReactiveCommand()
+                .WithSubscribe(async () =>
+                {
+                    DialogMessage.Value = "Query Executing ...";
+                    var result = await DialogHost.Show(this.dialog, async delegate (object sender, DialogOpenedEventArgs args)
+                    {
+                        if (QueryText.Value.Length > 0)
+                        {
+                            var r = await ExecuteQuery(QueryText.Value);
+                            UpdateDbView(r);
+                        }
+                        args.Session.Close(false);
+                    });
+                })
+                .AddTo(Disposables);
             //
             DialogMessage = new ReactivePropertySlim<string>("");
             DialogMessage.AddTo(Disposables);
@@ -322,7 +339,7 @@ namespace TaskTimeAmasser
             return query.ToString();
         }
 
-        private async Task ExecuteQuery(string query)
+        private async Task<bool> ExecuteQuery(string query)
         {
             // クエリ実行前処理
             if (EnablePresetUpdateQueryText.Value)
@@ -330,12 +347,19 @@ namespace TaskTimeAmasser
                 QueryText.Value = query;
             }
             // クエリ実行
-            await repository.QueryExecute(query);
+            return await repository.QueryExecute(query);
         }
-        private void UpdateDbView()
+        private void UpdateDbView(bool executeResult)
         {
-            // 結果反映
-            QueryResult.Value = repository.QueryResult;
+            if (executeResult)
+            {
+                // 結果反映
+                QueryResult.Value = repository.QueryResult;
+            }
+            else
+            {
+                UpdateQueryResultNotify(repository.ErrorMessage);
+            }
             /*
             DB.Value.Clear();
             // Column作成

@@ -65,7 +65,7 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0" Text="TaskAlias&#10;Filter" FontFamily="Meiryo UI" TextAlignment="Center" Margin="0,0,0,0"/>
-                    <TextBox Grid.Column="1" Text="{Binding FilterTaskAlias.Value}" Margin="0,0,10,0"/>
+                    <TextBox Grid.Column="1" Text="{Binding FilterTaskAlias.Value}" ToolTip="%  任意の0文字以上の文字列&#10;_   任意の1文字&#10;$  上記記号のエスケープ" Margin="0,0,10,0"/>
                 </Grid>
                 <Grid Margin="0,73,0,0" Height="30" VerticalAlignment="Top" HorizontalAlignment="Left" Width="253">
                     <Grid.ColumnDefinitions>
@@ -82,6 +82,7 @@
                 <TextBlock HorizontalAlignment="Left" Height="24" Margin="10,10,0,0" TextWrapping="Wrap" Text="SQL Manual" VerticalAlignment="Top" Width="227" TextDecorations="Underline" FontSize="14" FontWeight="Bold"/>
                 <TextBox Height="166" Margin="260,39,10,0" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" AcceptsReturn="True" Text="{Binding QueryText.Value}" Style="{StaticResource MaterialDesignFilledTextBox}" materialDesign:HintAssist.Hint="SQL Query"  VerticalAlignment="Top" FontSize="14"/>
                 <CheckBox Content="Presetクエリを実行時に上書きする" IsChecked="{Binding EnablePresetUpdateQueryText.Value}" HorizontalAlignment="Left" Height="26" Margin="260,10,0,0" VerticalAlignment="Top" Width="210"/>
+                <Button Command="{Binding QueryManualExecute}" Content="右のボックス内クエリを実行" HorizontalAlignment="Left" Height="27" Margin="10,178,0,0" VerticalAlignment="Top" Width="240"/>
             </Grid>
 
         </Grid>
