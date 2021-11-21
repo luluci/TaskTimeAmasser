@@ -7,7 +7,9 @@ using System.Reactive.Disposables;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using MaterialDesignThemes.Wpf;
 using Prism.Ioc;
 using Prism.Mvvm;
@@ -40,9 +42,11 @@ namespace TaskTimeAmasser
         public ReactivePropertySlim<string> LogDirLoadText { get; set; }
         public AsyncReactiveCommand LogDirLoad { get; set; }
         // Query Preset
-        public ReactivePropertySlim<string> FilterTaskAlias { get; set; }
         public ReactiveCollection<TaskInfo> FilterTaskCode { get; }
         public ReactivePropertySlim<int> FilterTaskCodeSelectIndex { get; set; }
+        public ReactivePropertySlim<string> FilterTaskName { get; set; }
+        public ReactivePropertySlim<string> FilterTaskAlias { get; set; }
+        public ReactivePropertySlim<string> FilterToolTip { get; set; }
         public AsyncReactiveCommand QueryPresetGetTaskList { get; }
         public AsyncReactiveCommand QueryPresetGetCodeSum { get; }
         // Query Manual
@@ -51,6 +55,14 @@ namespace TaskTimeAmasser
         public AsyncReactiveCommand QueryManualExecute { get; }
         // QueryResult領域
         public ReactiveProperty<DataTable> QueryResult { get; }
+        public ReactiveCommand<MouseButtonEventArgs> QueryDoubleClick { get; }
+        enum QueryResultMode
+        {
+            Notify,
+            TaskList,
+            Other,
+        }
+        QueryResultMode queryResultDisp = QueryResultMode.Notify;
         DataTable dbNotify;
         // ダイアログ操作
         public ReactivePropertySlim<string> DialogMessage { get; set; }
@@ -196,13 +208,23 @@ namespace TaskTimeAmasser
                 })
                 .AddTo(Disposables);
             // Query Preset
-            FilterTaskAlias = new ReactivePropertySlim<string>("");
-            FilterTaskCode = new ReactiveCollection<TaskInfo>();
-            FilterTaskCode.Add(new TaskInfo() { Code="<指定なし>", Name="<指定なし>" });
+            FilterTaskCode = new ReactiveCollection<TaskInfo>
+            {
+                new TaskInfo() { Code = "<指定なし>", Name = "<指定なし>" }
+            };
             FilterTaskCode
                 .AddTo(Disposables);
             FilterTaskCodeSelectIndex = new ReactivePropertySlim<int>(0);
             FilterTaskCodeSelectIndex
+                .AddTo(Disposables);
+            FilterTaskName = new ReactivePropertySlim<string>("");
+            FilterTaskName
+                .AddTo(Disposables);
+            FilterTaskAlias = new ReactivePropertySlim<string>("");
+            FilterTaskAlias
+                .AddTo(Disposables);
+            FilterToolTip = new ReactivePropertySlim<string>("*       任意の0文字以上の文字列\r\n?       任意の1文字\r\n[abc]  a or b or cのいずれかに一致\r\n[a-d]  aからdまでにいずれかに一致");
+            FilterToolTip
                 .AddTo(Disposables);
             //QueryPresetGetTaskList = new AsyncReactiveCommand();
             QueryPresetGetTaskList = repository.IsConnect
@@ -214,7 +236,7 @@ namespace TaskTimeAmasser
                     {
                         var q = MakeQuerySelectTaskList();
                         var r = await ExecuteQuery(q);
-                        UpdateDbView(r);
+                        UpdateDbView(r, QueryResultMode.TaskList);
                         args.Session.Close(false);
                     });
                 })
@@ -228,7 +250,7 @@ namespace TaskTimeAmasser
                     {
                         var q = MakeQuerySelectCodeSum();
                         var r = await ExecuteQuery(q);
-                        UpdateDbView(r);
+                        UpdateDbView(r, QueryResultMode.Other);
                         args.Session.Close(false);
                     });
                 })
@@ -246,7 +268,7 @@ namespace TaskTimeAmasser
                         if (QueryText.Value.Length > 0)
                         {
                             var r = await ExecuteQuery(QueryText.Value);
-                            UpdateDbView(r);
+                            UpdateDbView(r, QueryResultMode.Other);
                         }
                         args.Session.Close(false);
                     });
@@ -267,11 +289,64 @@ namespace TaskTimeAmasser
             }
             // Reactive設定
             QueryResult = new ReactiveProperty<DataTable>(dbNotify);
+            QueryDoubleClick = new ReactiveCommand<MouseButtonEventArgs>();
+            QueryDoubleClick
+                .WithSubscribe(OnDoubleClickQueryResult);
+        }
+
+        private void OnDoubleClickQueryResult(MouseButtonEventArgs e)
+        {
+            switch (queryResultDisp)
+            {
+                case QueryResultMode.TaskList:
+                    OnDoubleClickQueryResultTaskList(e);
+                    break;
+            }
+        }
+        private void OnDoubleClickQueryResultTaskList(MouseButtonEventArgs e)
+        {
+            var elem = e.MouseDevice.DirectlyOver as FrameworkElement;
+            if (elem != null)
+            {
+                DataGridCell cell = elem.Parent as DataGridCell;
+                if (cell == null)
+                {
+                    // ParentでDataGridCellが拾えなかった時はTemplatedParentを参照
+                    // （Borderをダブルクリックした時）
+                    cell = elem.TemplatedParent as DataGridCell;
+                }
+                if (cell != null)
+                {
+                    // ここでcellの内容を処理
+                    // （cell.DataContextにバインドされたものが入っているかと思います）
+                    var row = ((DataRowView)cell.DataContext).Row;
+                    //var rowidx = QueryResult.Value.Rows.IndexOf(row);
+                    var colidx = cell.Column.DisplayIndex;
+                    //MessageBox.Show($"({rowidx}, {cell.Column.DisplayIndex})");
+                    var data = row.Field<string>(colidx);
+                    // 選択した内容を転送
+                    switch (colidx)
+                    {
+                        case 0:
+                            // TaskCode
+                            break;
+                        case 1:
+                            // TaskName
+                            FilterTaskName.Value = data;
+                            break;
+                        case 2:
+                            // TaskAlias
+                            FilterTaskAlias.Value = data;
+                            break;
+                    }
+                }
+            }
         }
 
         private void UpdateQueryResultNotify(string msg)
         {
             dbNotify.Rows[0][0] = msg;
+            queryResultDisp = QueryResultMode.Notify;
             QueryResult.Value = dbNotify;
         }
 
@@ -290,7 +365,7 @@ namespace TaskTimeAmasser
         {
             // クエリ作成
             var query = new StringBuilder();
-            query.AppendLine(@"SELECT DISTINCT t.task_code, t.task_name, a.task_alias_name");
+            query.AppendLine(@"SELECT DISTINCT t.task_code AS コード, t.task_name AS タスク名, a.task_alias_name AS タスクエイリアス");
             query.AppendLine(@"  FROM work_times w, tasks t, task_aliases a");
             query.AppendLine(@"  WHERE w.task_id = t.task_id AND w.task_alias_id = a.task_alias_id");
             query.Append(@";");
@@ -336,7 +411,7 @@ namespace TaskTimeAmasser
             query.AppendLine(@"     (SELECT w.subtask_id AS id, s.subtask_code AS code, w.time AS time, w.task_alias_id AS alias_id FROM subtasks s, work_times w WHERE w.subtask_id = s.subtask_id");
             query.AppendLine(@"      UNION ALL");
             query.AppendLine(@"      SELECT s.subtask_id, s.subtask_code, 0, -1 FROM subtasks s) AS intbl,");
-            query.AppendLine($@"     (SELECT a.task_alias_id AS alias_id FROM task_aliases a WHERE a.task_alias_name LIKE '{filterTaskAlias}') AS tasktbl");
+            query.AppendLine($@"     (SELECT a.task_alias_id AS alias_id FROM task_aliases a WHERE a.task_alias_name GLOB '{filterTaskAlias}') AS tasktbl");
             query.AppendLine(@"   WHERE intbl.alias_id IN (tasktbl.alias_id, -1)");
             query.AppendLine(@"  ) AS unitbl");
             query.AppendLine(@"WHERE s.subtask_id = unitbl.id");
@@ -355,11 +430,12 @@ namespace TaskTimeAmasser
             // クエリ実行
             return await repository.QueryExecute(query);
         }
-        private void UpdateDbView(bool executeResult)
+        private void UpdateDbView(bool executeResult, QueryResultMode mode)
         {
             if (executeResult)
             {
                 // 結果反映
+                queryResultDisp = mode;
                 QueryResult.Value = repository.QueryResult;
             }
             else

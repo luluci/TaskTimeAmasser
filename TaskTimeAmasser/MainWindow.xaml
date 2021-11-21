@@ -45,6 +45,11 @@
             </Grid>
             <Grid Background="#FFD6EAFB" Margin="0,104,0,215">
                 <DataGrid ItemsSource="{Binding QueryResult.Value}" IsReadOnly="True" Margin="258,10,10,10">
+                    <bh:Interaction.Triggers>
+                        <bh:EventTrigger EventName="MouseDoubleClick">
+                            <prism:InvokeCommandAction Command="{Binding QueryDoubleClick}"/>
+                        </bh:EventTrigger>
+                    </bh:Interaction.Triggers>
                     <!--
                             <DataGrid.RowStyle>
                                 <Style TargetType="DataGridRow">
@@ -64,19 +69,27 @@
                         <ColumnDefinition Width="70"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="TaskAlias&#10;Filter" FontFamily="Meiryo UI" TextAlignment="Center" Margin="0,0,0,0"/>
-                    <TextBox Grid.Column="1" Text="{Binding FilterTaskAlias.Value}" ToolTip="%  任意の0文字以上の文字列&#10;_   任意の1文字&#10;$  上記記号のエスケープ" Margin="0,0,10,0"/>
+                    <TextBlock Grid.Column="0" Text="TaskCode&#10;Filter" FontFamily="Meiryo UI" TextAlignment="Center" Margin="0,0,0,0"/>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding FilterTaskCode}" DisplayMemberPath="Code" SelectedIndex="{Binding FilterTaskCodeSelectIndex.Value}" Margin="0,0,10,0" Padding="5,7,0,0" />
                 </Grid>
                 <Grid Margin="0,73,0,0" Height="30" VerticalAlignment="Top" HorizontalAlignment="Left" Width="253">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="70"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Task&#10;Filter" FontFamily="Meiryo UI" TextAlignment="Center" Margin="0,0,0,0"/>
-                    <ComboBox Grid.Column="1" ItemsSource="{Binding FilterTaskCode}" DisplayMemberPath="Name" SelectedIndex="{Binding FilterTaskCodeSelectIndex.Value}" Margin="0,0,10,0" Padding="5,7,0,0" />
+                    <TextBlock Grid.Column="0" Text="TaskName&#10;Filter" FontFamily="Meiryo UI" TextAlignment="Center" Margin="0,0,0,0"/>
+                    <TextBox Grid.Column="1" Text="{Binding FilterTaskName.Value}" ToolTip="{Binding FilterToolTip.Value}" Margin="0,0,10,0"/>
                 </Grid>
-                <Button Command="{Binding QueryPresetGetTaskList}" Content="Task一覧" HorizontalAlignment="Left" Height="29" Margin="10,128,0,0" VerticalAlignment="Top" Width="240"/>
-                <Button Command="{Binding QueryPresetGetCodeSum}" Content="SubKey/Time一覧" HorizontalAlignment="Left" Height="29" Margin="10,170,0,0" VerticalAlignment="Top" Width="240"/>
+                <Grid Margin="0,108,0,0" Height="30" VerticalAlignment="Top" HorizontalAlignment="Left" Width="253">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="70"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="TaskAlias&#10;Filter" FontFamily="Meiryo UI" TextAlignment="Center" Margin="0,0,0,0"/>
+                    <TextBox Grid.Column="1" Text="{Binding FilterTaskAlias.Value}" ToolTip="{Binding FilterToolTip.Value}" Margin="0,0,10,0"/>
+                </Grid>
+                <Button Command="{Binding QueryPresetGetTaskList}" Content="Task一覧" HorizontalAlignment="Left" Height="29" Margin="10,163,0,0" VerticalAlignment="Top" Width="240"/>
+                <Button Command="{Binding QueryPresetGetCodeSum}" Content="SubKey/Time一覧" HorizontalAlignment="Left" Height="29" Margin="10,203,0,0" VerticalAlignment="Top" Width="240"/>
             </Grid>
             <Grid Background="#FFE9FFDD" Height="215" VerticalAlignment="Bottom">
                 <TextBlock HorizontalAlignment="Left" Height="24" Margin="10,10,0,0" TextWrapping="Wrap" Text="SQL Manual" VerticalAlignment="Top" Width="227" TextDecorations="Underline" FontSize="14" FontWeight="Bold"/>

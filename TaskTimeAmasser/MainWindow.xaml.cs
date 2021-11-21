@@ -29,5 +29,27 @@ namespace TaskTimeAmasser
         {
             ((MainWindowViewModel)this.DataContext).dialog = this.dialog;
         }
+
+        private void DataGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            var elem = e.MouseDevice.DirectlyOver as FrameworkElement;
+            if (elem != null)
+            {
+                DataGridCell cell = elem.Parent as DataGridCell;
+                if (cell == null)
+                {
+                    // ParentでDataGridCellが拾えなかった時はTemplatedParentを参照
+                    // （Borderをダブルクリックした時）
+                    cell = elem.TemplatedParent as DataGridCell;
+                }
+                if (cell != null)
+                {
+                    // ここでcellの内容を処理
+                    // （cell.DataContextにバインドされたものが入っているかと思います）
+                    
+                    MessageBox.Show($"{cell.Column.DisplayIndex}");
+                }
+            }
+        }
     }
 }
