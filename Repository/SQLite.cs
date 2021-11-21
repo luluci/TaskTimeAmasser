@@ -970,13 +970,13 @@ namespace Repository
         }
 
 
-        public async Task<bool> QueryGetTaskCode<T>(Collection<T> list)
+        public async Task<bool> QueryGetTaskCode<T>(ICollection<(T code,T name)> list)
         {
             try
             {
                 // クエリ作成
                 var query = new StringBuilder();
-                query.Append(@"SELECT task_code FROM tasks");
+                query.Append(@"SELECT task_code, task_name FROM tasks");
                 query.Append(@";");
                 LastQuery = query.ToString();
                 // クエリ実行
@@ -988,7 +988,9 @@ namespace Repository
                         // 結果読み出し
                         while (reader.Read() == true)
                         {
-                            list.Add((T)reader["task_code"]);
+                            var code = (T)reader["task_code"];
+                            var name = (T)reader["task_name"];
+                            list.Add((code,name));
                         }
                     }
                 }

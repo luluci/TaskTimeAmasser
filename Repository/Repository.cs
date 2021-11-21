@@ -13,11 +13,12 @@ using Reactive.Bindings.Extensions;
 
 namespace Repository
 {
+
     public interface IRepository : IDisposable
     {
         ReactivePropertySlim<bool> IsConnect { get; set; }
         ReactivePropertySlim<bool> IsLoading { get; set; }
-        ObservableCollection<string> TaskCodeList { get; set; }
+        List<(string code, string name)> TaskCodeList { get; set; }
         DataTable QueryResult { get; set; }
         string ErrorMessage { get; set; }
 
@@ -36,7 +37,7 @@ namespace Repository
         public ReactivePropertySlim<bool> IsConnect { get; set; }
         public ReactivePropertySlim<bool> IsLoading { get; set; }
 
-        public ObservableCollection<string> TaskCodeList { get; set; } = new ObservableCollection<string>();
+        public List<(string code, string name)> TaskCodeList { get; set; } = new List<(string code, string name)>();
 
         public DataTable QueryResult { get; set; }
         public string ErrorMessage { get; set; }
@@ -166,8 +167,8 @@ namespace Repository
 
         public async Task<bool> Update()
         {
-            TaskCodeList = new ObservableCollection<string>();
-            var result = await sqlite.QueryGetTaskCode(TaskCodeList);
+            TaskCodeList.Clear();
+            var result = await sqlite.QueryGetTaskCode<string>(TaskCodeList);
             ErrorMessage = sqlite.LastErrorMessage;
             return result;
         }

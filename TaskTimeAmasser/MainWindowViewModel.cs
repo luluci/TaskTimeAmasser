@@ -18,6 +18,12 @@ using WinAPI = Microsoft.WindowsAPICodePack;
 
 namespace TaskTimeAmasser
 {
+    class TaskInfo
+    {
+        public string Code { get; set; } = "";
+        public string Name { get; set; } = "";
+    }
+
     class MainWindowViewModel : BindableBase, IDisposable
     {
         //
@@ -35,7 +41,7 @@ namespace TaskTimeAmasser
         public AsyncReactiveCommand LogDirLoad { get; set; }
         // Query Preset
         public ReactivePropertySlim<string> FilterTaskAlias { get; set; }
-        public ReactiveCollection<string> FilterTaskCode { get; }
+        public ReactiveCollection<TaskInfo> FilterTaskCode { get; }
         public ReactivePropertySlim<int> FilterTaskCodeSelectIndex { get; set; }
         public AsyncReactiveCommand QueryPresetGetTaskList { get; }
         public AsyncReactiveCommand QueryPresetGetCodeSum { get; }
@@ -191,8 +197,8 @@ namespace TaskTimeAmasser
                 .AddTo(Disposables);
             // Query Preset
             FilterTaskAlias = new ReactivePropertySlim<string>("");
-            FilterTaskCode = new ReactiveCollection<string>();
-            FilterTaskCode.Add("<指定なし>");
+            FilterTaskCode = new ReactiveCollection<TaskInfo>();
+            FilterTaskCode.Add(new TaskInfo() { Code="<指定なし>", Name="<指定なし>" });
             FilterTaskCode
                 .AddTo(Disposables);
             FilterTaskCodeSelectIndex = new ReactivePropertySlim<int>(0);
@@ -272,10 +278,10 @@ namespace TaskTimeAmasser
         private void UpdateQueryInfo()
         {
             FilterTaskCode.Clear();
-            FilterTaskCode.Add("<指定なし>");
-            foreach (var code in repository.TaskCodeList)
+            FilterTaskCode.Add(new TaskInfo() { Code = "<指定なし>", Name = "<指定なし>" });
+            foreach (var item in repository.TaskCodeList)
             {
-                FilterTaskCode.Add(code);
+                FilterTaskCode.Add(new TaskInfo() { Code = item.code, Name = item.name });
             }
             FilterTaskCodeSelectIndex.Value = 0;
         }
