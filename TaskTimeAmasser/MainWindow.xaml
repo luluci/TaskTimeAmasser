@@ -70,7 +70,7 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0" Text="TaskCode&#10;Filter" FontFamily="Meiryo UI" TextAlignment="Center" Margin="0,0,0,0"/>
-                    <ComboBox Grid.Column="1" ItemsSource="{Binding FilterTaskCode}" DisplayMemberPath="Code" SelectedIndex="{Binding FilterTaskCodeSelectIndex.Value}" Margin="0,0,10,0" Padding="5,7,0,0" />
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding FilterTaskCode}" SelectedItem="{Binding FilterTaskCodeSelectItem.Value}" SelectedIndex="{Binding FilterTaskCodeSelectIndex.Value}" Margin="0,0,10,0" Padding="5,7,0,0" />
                 </Grid>
                 <Grid Margin="0,73,0,0" Height="30" VerticalAlignment="Top" HorizontalAlignment="Left" Width="253">
                     <Grid.ColumnDefinitions>

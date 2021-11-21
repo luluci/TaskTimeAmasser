@@ -20,11 +20,6 @@ using WinAPI = Microsoft.WindowsAPICodePack;
 
 namespace TaskTimeAmasser
 {
-    class TaskInfo
-    {
-        public string Code { get; set; } = "";
-        public string Name { get; set; } = "";
-    }
 
     class MainWindowViewModel : BindableBase, IDisposable
     {
@@ -42,8 +37,9 @@ namespace TaskTimeAmasser
         public ReactivePropertySlim<string> LogDirLoadText { get; set; }
         public AsyncReactiveCommand LogDirLoad { get; set; }
         // Query Preset
-        public ReactiveCollection<TaskInfo> FilterTaskCode { get; }
+        public ReactiveCollection<string> FilterTaskCode { get; }
         public ReactivePropertySlim<int> FilterTaskCodeSelectIndex { get; set; }
+        public ReactivePropertySlim<string> FilterTaskCodeSelectItem { get; set; }
         public ReactivePropertySlim<string> FilterTaskName { get; set; }
         public ReactivePropertySlim<string> FilterTaskAlias { get; set; }
         public ReactivePropertySlim<string> FilterToolTip { get; set; }
@@ -208,11 +204,14 @@ namespace TaskTimeAmasser
                 })
                 .AddTo(Disposables);
             // Query Preset
-            FilterTaskCode = new ReactiveCollection<TaskInfo>
+            FilterTaskCode = new ReactiveCollection<string>
             {
-                new TaskInfo() { Code = "<指定なし>", Name = "<指定なし>" }
+                "<指定なし>"
             };
             FilterTaskCode
+                .AddTo(Disposables);
+            FilterTaskCodeSelectItem = new ReactivePropertySlim<string>("");
+            FilterTaskCodeSelectItem
                 .AddTo(Disposables);
             FilterTaskCodeSelectIndex = new ReactivePropertySlim<int>(0);
             FilterTaskCodeSelectIndex
@@ -329,6 +328,7 @@ namespace TaskTimeAmasser
                     {
                         case 0:
                             // TaskCode
+                            FilterTaskCodeSelectItem.Value = data;
                             break;
                         case 1:
                             // TaskName
@@ -353,10 +353,10 @@ namespace TaskTimeAmasser
         private void UpdateQueryInfo()
         {
             FilterTaskCode.Clear();
-            FilterTaskCode.Add(new TaskInfo() { Code = "<指定なし>", Name = "<指定なし>" });
+            FilterTaskCode.Add("<指定なし>");
             foreach (var item in repository.TaskCodeList)
             {
-                FilterTaskCode.Add(new TaskInfo() { Code = item.code, Name = item.name });
+                FilterTaskCode.Add(item.code);
             }
             FilterTaskCodeSelectIndex.Value = 0;
         }
