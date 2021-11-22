@@ -77,8 +77,8 @@
                         <ColumnDefinition Width="70"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="TaskName&#10;Filter" FontFamily="Meiryo UI" TextAlignment="Center" Margin="0,0,0,0"/>
-                    <TextBox Grid.Column="1" Text="{Binding FilterTaskName.Value}" ToolTip="{Binding FilterToolTip.Value}" Margin="0,0,10,0"/>
+                    <TextBlock Grid.Column="0" Text="TaskName&#10;Filter" FontFamily="Meiryo UI" TextAlignment="Center" Margin="0,0,0,0" />
+                    <TextBox Grid.Column="1" Text="{Binding FilterTaskName.Value}" ToolTip="{Binding FilterToolTip.Value}" Margin="0,0,10,0" Padding="5,8,0,0" />
                 </Grid>
                 <Grid Margin="0,108,0,0" Height="30" VerticalAlignment="Top" HorizontalAlignment="Left" Width="253">
                     <Grid.ColumnDefinitions>
@@ -86,10 +86,32 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0" Text="TaskAlias&#10;Filter" FontFamily="Meiryo UI" TextAlignment="Center" Margin="0,0,0,0"/>
-                    <TextBox Grid.Column="1" Text="{Binding FilterTaskAlias.Value}" ToolTip="{Binding FilterToolTip.Value}" Margin="0,0,10,0"/>
+                    <TextBox Grid.Column="1" Text="{Binding FilterTaskAlias.Value}" ToolTip="{Binding FilterToolTip.Value}" Margin="0,0,10,0" Padding="5,8,0,0" />
                 </Grid>
                 <Button Command="{Binding QueryPresetGetTaskList}" Content="Task一覧" HorizontalAlignment="Left" Height="29" Margin="10,163,0,0" VerticalAlignment="Top" Width="240"/>
                 <Button Command="{Binding QueryPresetGetCodeSum}" Content="SubKey/Time一覧" HorizontalAlignment="Left" Height="29" Margin="10,203,0,0" VerticalAlignment="Top" Width="240"/>
+                <Grid Margin="0,256,0,0" Height="30" VerticalAlignment="Top" HorizontalAlignment="Left" Width="253">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="115"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="115"/>
+                    </Grid.ColumnDefinitions>
+                    <DatePicker Grid.Column="0" SelectedDate="{Binding FilterTermBegin.Value}" VerticalAlignment="Stretch" FontSize="14" Margin="10,0,5,4"/>
+                    <TextBlock Grid.Column="1" Text="～" FontFamily="Meiryo UI" TextAlignment="Center" Margin="0,0,0,0" VerticalAlignment="Center"/>
+                    <DatePicker Grid.Column="2" SelectedDate="{Binding FilterTermEnd.Value}" VerticalAlignment="Stretch" FontSize="14" Margin="5,0,10,4"/>
+                </Grid>
+                <Grid Margin="0,291,0,0" Height="30" VerticalAlignment="Top" HorizontalAlignment="Left" Width="253">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="75"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <ComboBox Grid.Column="0" SelectedIndex="{Binding FilterTermUnitSelectIndex.Value}" Margin="10,0,5,0" Padding="5,7,0,0" >
+                        <ComboBoxItem Content="日単位"/>
+                        <ComboBoxItem Content="月単位"/>
+                        <ComboBoxItem Content="年単位"/>
+                    </ComboBox>
+                    <Button Grid.Column="1" Content="指定の期間・単位で集計" Command="{Binding QueryPresetGetCodeSumTerm}" Height="30" Margin="5,0" Padding="0"/>
+                </Grid>
             </Grid>
             <Grid Background="#FFE9FFDD" Height="215" VerticalAlignment="Bottom">
                 <TextBlock HorizontalAlignment="Left" Height="24" Margin="10,10,0,0" TextWrapping="Wrap" Text="SQL Manual" VerticalAlignment="Top" Width="227" TextDecorations="Underline" FontSize="14" FontWeight="Bold"/>

@@ -45,6 +45,10 @@ namespace TaskTimeAmasser
         public ReactivePropertySlim<string> FilterToolTip { get; set; }
         public AsyncReactiveCommand QueryPresetGetTaskList { get; }
         public AsyncReactiveCommand QueryPresetGetCodeSum { get; }
+        public ReactivePropertySlim<DateTime> FilterTermBegin { get; set; }
+        public ReactivePropertySlim<DateTime> FilterTermEnd { get; set; }
+        public ReactivePropertySlim<int> FilterTermUnitSelectIndex { get; set; }
+        public AsyncReactiveCommand QueryPresetGetCodeSumTerm { get; }
         // Query Manual
         public ReactivePropertySlim<string> QueryText { get; set; }
         public ReactivePropertySlim<bool> EnablePresetUpdateQueryText { get; set; }
@@ -254,6 +258,32 @@ namespace TaskTimeAmasser
                     });
                 })
                 .AddTo(Disposables);
+            FilterTermBegin = new ReactivePropertySlim<DateTime>(DateTime.Now);
+            FilterTermBegin
+                .AddTo(Disposables);
+            FilterTermEnd = new ReactivePropertySlim<DateTime>(DateTime.Now);
+            FilterTermEnd
+                .AddTo(Disposables);
+            FilterTermUnitSelectIndex = new ReactivePropertySlim<int>(0);
+            FilterTermUnitSelectIndex
+                .AddTo(Disposables);
+            QueryPresetGetCodeSumTerm = repository.IsConnect
+                .ToAsyncReactiveCommand()
+                .WithSubscribe(async () =>
+                {
+                    DialogMessage.Value = "Query Executing ...";
+                    var result = await DialogHost.Show(this.dialog, async delegate (object sender, DialogOpenedEventArgs args)
+                    {
+                        var r = await Task.Run(async () =>
+                        {
+                            var q = MakeQuerySelectCodeSumTerm();
+                            return await ExecuteQuery(q);
+                        });
+                        UpdateDbView(r, QueryResultMode.Other);
+                        args.Session.Close(false);
+                    });
+                })
+                .AddTo(Disposables);
             // Query Manual
             QueryText = new ReactivePropertySlim<string>("");
             EnablePresetUpdateQueryText = new ReactivePropertySlim<bool>(true);
@@ -392,36 +422,83 @@ namespace TaskTimeAmasser
             }
         }
 
-        private string MakeQuerySelectCodeSumNoFilter()
+        private string MakeQuerySelectCodeSumTerm()
+        {
+            var filter = new QueryFilterTask
+            {
+                TaskCode = FilterTaskCodeSelectItem.Value,
+                TaskName = FilterTaskName.Value,
+                TaskAlias = FilterTaskAlias.Value,
+            };
+            filter.Init();
+            var term = new QueryFilterTerm
+            {
+                Begin = FilterTermBegin.Value,
+                End = FilterTermEnd.Value,
+                Unit = FilterTermUnitSelectIndex.Value
+            };
+            term.Init();
+            // クエリ作成
+            if (!filter.IsActive)
+            {
+                return MakeQuerySelectCodeSumNoFilter(term);
+            }
+            else
+            {
+                return MakeQuerySelectCodeSumFilter(filter, term);
+            }
+        }
+
+        private string MakeQuerySelectCodeSumNoFilter(QueryFilterTerm term = null)
         {
             // クエリ作成
             var query = new StringBuilder();
-            query.AppendLine(@"SELECT s.subtask_code AS コード, Sum(unitbl.time) AS 工数");
+            query.AppendLine(@"SELECT");
+            query.AppendLine(@"  s.subtask_code AS 'コード',");
+            if (!(term is null))
+            {
+                for (int i = 0; i < term.Terms.Count; i++)
+                {
+                    var thre = term.Terms[i];
+                    query.AppendLine($@"  Sum(CASE WHEN {thre.boundLo} <= time_tbl.date AND time_tbl.date < {thre.boundHi} THEN time_tbl.time ELSE 0 END) AS '工数({thre.date})',");
+                }
+            }
+            query.AppendLine(@"  Sum(time_tbl.time) AS '工数(合計)'");
             query.AppendLine(@"FROM subtasks s,");
-            query.AppendLine(@"  (SELECT w.subtask_id AS id, s.subtask_code, w.time AS time FROM subtasks s, work_times w WHERE w.subtask_id = s.subtask_id");
+            query.AppendLine(@"  (SELECT w.subtask_id AS id, s.subtask_code, w.date AS date, w.time AS time FROM subtasks s, work_times w WHERE w.subtask_id = s.subtask_id");
             query.AppendLine(@"   UNION ALL");
-            query.AppendLine(@"   SELECT s.subtask_id, s.subtask_code, 0 FROM subtasks s) AS unitbl");
-            query.AppendLine(@"WHERE s.subtask_id = unitbl.id");
+            query.AppendLine(@"   SELECT s.subtask_id, s.subtask_code, 0, 0 FROM subtasks s) AS time_tbl");
+            query.AppendLine(@"WHERE s.subtask_id = time_tbl.id");
             query.AppendLine(@"GROUP BY s.subtask_id");
             query.Append(@";");
             return query.ToString();
         }
 
-        private string MakeQuerySelectCodeSumFilter(QueryFilterTask filter)
+        private string MakeQuerySelectCodeSumFilter(QueryFilterTask filter, QueryFilterTerm term = null)
         {
             // クエリ作成
             var query = new StringBuilder();
-            query.AppendLine(@"SELECT s.subtask_code AS コード, Sum(time_tbl.time) AS 工数");
+            query.AppendLine(@"SELECT");
+            query.AppendLine(@"  s.subtask_code AS 'コード',");
+            if (!(term is null))
+            {
+                for (int i = 0; i < term.Terms.Count; i++)
+                {
+                    var thre = term.Terms[i];
+                    query.AppendLine($@"  Sum(CASE WHEN {thre.boundLo} <= time_tbl.date AND time_tbl.date < {thre.boundHi} THEN time_tbl.time ELSE 0 END) AS '工数({thre.date})',");
+                }
+            }
+            query.AppendLine(@"  Sum(time_tbl.time) AS '工数(合計)'");
             query.AppendLine(@"FROM subtasks s,");
-            query.AppendLine(@"  (SELECT maintbl.sub_id AS id, maintbl.sub_code AS code, maintbl.time AS time");
+            query.AppendLine(@"  (SELECT maintbl.sub_id AS id, maintbl.sub_code AS code, maintbl.date AS date, maintbl.time AS time");
             query.AppendLine(@"   FROM");
             // 工数データサブテーブル
             // 「タスクID, タスクエイリアスID, サブタスクID, サブタスクコード, 工数」のサブクエリ作成
             // subtasksテーブルをUNIONで合成してサブタスクコードをすべて含むテーブルとする。工数はゼロとし、IDは通常IDとはマッチしない-1とする。
-            query.AppendLine(@"     (SELECT w.subtask_id AS sub_id, s.subtask_code AS sub_code, w.time AS time, w.task_alias_id AS alias_id, w.task_id AS task_id");
+            query.AppendLine(@"     (SELECT w.subtask_id AS sub_id, s.subtask_code AS sub_code, w.date AS date, w.time AS time, w.task_alias_id AS alias_id, w.task_id AS task_id");
             query.AppendLine(@"        FROM subtasks s, work_times w WHERE w.subtask_id = s.subtask_id");
             query.AppendLine(@"      UNION ALL");
-            query.AppendLine(@"      SELECT s.subtask_id, s.subtask_code, 0, -1, -1 FROM subtasks s) AS maintbl");
+            query.AppendLine(@"      SELECT s.subtask_id, s.subtask_code, 0, 0, -1, -1 FROM subtasks s) AS maintbl");
             // タスクフィルターサブテーブル
             if (filter.EnableTasks)
             {
@@ -602,5 +679,112 @@ namespace TaskTimeAmasser
             IsActive = (EnableTaskCode || EnableTaskName || EnableTaskAlias);
         }
 
+    }
+
+    class QueryFilterTerm
+    {
+        public DateTime Begin { get; set; }
+        public DateTime End { get; set; }
+        public int Unit { get; set; }
+
+        public List<(long boundLo, long boundHi, string date)> Terms { get; set; } = new List<(long boundLo, long boundHi, string date)>();
+
+        public QueryFilterTerm()
+        {
+
+        }
+
+        public void Init()
+        {
+            // 前後関係チェック
+            if (Begin > End)
+            {
+                var temp = Begin;
+                Begin = End;
+                End = temp;
+            }
+            MakeTerm();
+        }
+
+        private void MakeTerm()
+        {
+            switch (Unit)
+            {
+                case 0:
+                    // 日単位
+                    MakeTermDay();
+                    break;
+                case 1:
+                    // 月単位
+                    MakeTermMonth();
+                    break;
+                case 2:
+                    // 年単位
+                    MakeTermYear();
+                    break;
+                default:
+                    Terms.Clear();
+                    break;
+            }
+        }
+
+        private void MakeTermDay()
+        {
+            // (Lo, Hi]の判定とする
+            // Beginの日付(Beginの0時0分になってるはず)を初期境界値下限にセット
+            var boundCurr = Begin.Date;
+            // Endの日付まで含めるものとする
+            // 日時の差分をバッファサイズとする
+            var span = End.Date - boundCurr;
+            Terms.Clear();
+            Terms.Capacity = span.Days + 1;
+            // 1日分の差分を境界値として登録
+            for (int i = 0; i < Terms.Capacity; i++)
+            {
+                var boundNext = boundCurr.AddDays(1);
+                Terms.Add((boundCurr.ToBinary(), boundNext.ToBinary(), boundCurr.ToString("yyyy/MM/dd")));
+                boundCurr = boundNext;
+            }
+        }
+
+        private void MakeTermMonth()
+        {
+            // (Lo, Hi]の判定とする
+            // Beginの日付(Beginの0時0分になってるはず)を初期境界値下限にセット
+            var boundCurr = Begin.Date;
+            // Endの日付まで含めるものとする
+            var boundEnd = End.Date;
+            // 日時の差分をバッファサイズとする
+            var span = (boundEnd.Month - boundCurr.Month) + (12 * (boundEnd.Year - boundCurr.Year));
+            Terms.Clear();
+            Terms.Capacity = span + 1;
+            // 1日分の差分を境界値として登録
+            for (int i = 0; i < Terms.Capacity; i++)
+            {
+                var boundNext = boundCurr.AddMonths(1);
+                Terms.Add((boundCurr.ToBinary(), boundNext.ToBinary(), boundCurr.ToString("yyyy/MM")));
+                boundCurr = boundNext;
+            }
+        }
+
+        private void MakeTermYear()
+        {
+            // (Lo, Hi]の判定とする
+            // Beginの日付(Beginの0時0分になってるはず)を初期境界値下限にセット
+            var boundCurr = Begin.Date;
+            // Endの日付まで含めるものとする
+            var boundEnd = End.Date;
+            // 日時の差分をバッファサイズとする
+            var span = boundEnd.Year - boundCurr.Year;
+            Terms.Clear();
+            Terms.Capacity = span + 1;
+            // 1日分の差分を境界値として登録
+            for (int i = 0; i < Terms.Capacity; i++)
+            {
+                var boundNext = boundCurr.AddYears(1);
+                Terms.Add((boundCurr.ToBinary(), boundNext.ToBinary(), boundCurr.ToString("yyyy")));
+                boundCurr = boundNext;
+            }
+        }
     }
 }
