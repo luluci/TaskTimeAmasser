@@ -374,14 +374,21 @@ namespace TaskTimeAmasser
 
         private string MakeQuerySelectCodeSum()
         {
+            var filter = new QueryFilterTask
+            {
+                TaskCode = FilterTaskCodeSelectItem.Value,
+                TaskName = FilterTaskName.Value,
+                TaskAlias = FilterTaskAlias.Value,
+            };
+            filter.Init();
             // クエリ作成
-            if (FilterTaskAlias.Value.Length == 0)
+            if (!filter.IsActive)
             {
                 return MakeQuerySelectCodeSumNoFilter();
             }
             else
             {
-                return MakeQuerySelectCodeSumFilter(FilterTaskAlias.Value);
+                return MakeQuerySelectCodeSumFilter(filter);
             }
         }
 
@@ -400,21 +407,65 @@ namespace TaskTimeAmasser
             return query.ToString();
         }
 
-        private string MakeQuerySelectCodeSumFilter(string filterTaskAlias)
+        private string MakeQuerySelectCodeSumFilter(QueryFilterTask filter)
         {
             // クエリ作成
             var query = new StringBuilder();
-            query.AppendLine(@"SELECT s.subtask_code AS コード, Sum(unitbl.time) AS 工数");
+            query.AppendLine(@"SELECT s.subtask_code AS コード, Sum(time_tbl.time) AS 工数");
             query.AppendLine(@"FROM subtasks s,");
-            query.AppendLine(@"  (SELECT intbl.id AS id, intbl.code AS code, intbl.time AS time");
+            query.AppendLine(@"  (SELECT maintbl.sub_id AS id, maintbl.sub_code AS code, maintbl.time AS time");
             query.AppendLine(@"   FROM");
-            query.AppendLine(@"     (SELECT w.subtask_id AS id, s.subtask_code AS code, w.time AS time, w.task_alias_id AS alias_id FROM subtasks s, work_times w WHERE w.subtask_id = s.subtask_id");
+            // 工数データサブテーブル
+            // 「タスクID, タスクエイリアスID, サブタスクID, サブタスクコード, 工数」のサブクエリ作成
+            // subtasksテーブルをUNIONで合成してサブタスクコードをすべて含むテーブルとする。工数はゼロとし、IDは通常IDとはマッチしない-1とする。
+            query.AppendLine(@"     (SELECT w.subtask_id AS sub_id, s.subtask_code AS sub_code, w.time AS time, w.task_alias_id AS alias_id, w.task_id AS task_id");
+            query.AppendLine(@"        FROM subtasks s, work_times w WHERE w.subtask_id = s.subtask_id");
             query.AppendLine(@"      UNION ALL");
-            query.AppendLine(@"      SELECT s.subtask_id, s.subtask_code, 0, -1 FROM subtasks s) AS intbl,");
-            query.AppendLine($@"     (SELECT a.task_alias_id AS alias_id FROM task_aliases a WHERE a.task_alias_name GLOB '{filterTaskAlias}') AS tasktbl");
-            query.AppendLine(@"   WHERE intbl.alias_id IN (tasktbl.alias_id, -1)");
-            query.AppendLine(@"  ) AS unitbl");
-            query.AppendLine(@"WHERE s.subtask_id = unitbl.id");
+            query.AppendLine(@"      SELECT s.subtask_id, s.subtask_code, 0, -1, -1 FROM subtasks s) AS maintbl");
+            // タスクフィルターサブテーブル
+            if (filter.EnableTasks)
+            {
+                // タスク名とタスクIDの両方をフィルターするか？
+                var partAnd = "";
+                if (filter.EnableTaskCode && filter.EnableTaskName)
+                {
+                    partAnd = " AND ";
+                }
+                query.AppendLine(@"     ,");
+                query.AppendLine($@"     (SELECT t.task_id AS task_id FROM tasks t");
+                query.AppendLine($@"      WHERE");
+                if (filter.EnableTaskName)
+                {
+                    query.AppendLine($@"        t.task_name GLOB '{filter.TaskName}' {partAnd}");
+                }
+                if (filter.EnableTaskCode)
+                {
+                    query.AppendLine($@"        t.task_code GLOB '{filter.TaskCode}'");
+                }
+                query.AppendLine($@"     ) AS filter_task");
+            }
+            // タスクエイリアスフィルターサブテーブル
+            if (filter.EnableTaskAlias)
+            {
+                query.AppendLine(@"     ,");
+                query.AppendLine($@"     (SELECT a.task_alias_id AS alias_id FROM task_aliases a WHERE a.task_alias_name GLOB '{filter.TaskAlias}') AS filter_alias");
+            }
+            query.AppendLine(@"   WHERE");
+            if (filter.EnableTasks)
+            {
+                var partAnd = "";
+                if (filter.EnableTaskAlias)
+                {
+                    partAnd = "AND";
+                }
+                query.AppendLine($@"     maintbl.task_id IN (filter_task.task_id, -1) {partAnd}");
+            }
+            if (filter.EnableTaskAlias)
+            {
+                query.AppendLine(@"     maintbl.alias_id IN (filter_alias.alias_id, -1)");
+            }
+            query.AppendLine(@"  ) AS time_tbl");
+            query.AppendLine(@"WHERE s.subtask_id = time_tbl.id");
             query.AppendLine(@"GROUP BY s.subtask_id");
             query.Append(@";");
             return query.ToString();
@@ -526,5 +577,30 @@ namespace TaskTimeAmasser
             // このコードを変更しないでください。クリーンアップ コードを上の Dispose(bool disposing) に記述します。
             Dispose(true);
         }
+    }
+
+    class QueryFilterTask
+    {
+        public string TaskCode { get; set; } = string.Empty;
+        public string TaskName { get; set; } = string.Empty;
+        public string TaskAlias { get; set; } = string.Empty;
+
+        public bool IsActive { get; set; } = false;
+        public bool EnableTasks { get; set; } = false;
+        public bool EnableTaskCode { get; set; } = false;
+        public bool EnableTaskName { get; set; } = false;
+        public bool EnableTaskAlias { get; set; } = false;
+
+        public QueryFilterTask() { }
+
+        public void Init()
+        {
+            EnableTaskCode = TaskCode != "<指定なし>";
+            EnableTaskName = TaskName.Length != 0;
+            EnableTaskAlias = TaskAlias.Length != 0;
+            EnableTasks = (EnableTaskCode || EnableTaskName);
+            IsActive = (EnableTaskCode || EnableTaskName || EnableTaskAlias);
+        }
+
     }
 }
