@@ -969,6 +969,40 @@ namespace Repository
             }
         }
 
+        public async Task<(bool,long,long)> QueryGetDateRange()
+        {
+            try
+            {
+                long begin = 0;
+                long end = 0;
+                // クエリ作成
+                var query = new StringBuilder();
+                query.Append(@"SELECT max(w.date) AS MAX, min(w.date) AS MIN FROM work_times w");
+                query.Append(@";");
+                LastQuery = query.ToString();
+                // クエリ実行
+                using (var command = conn.CreateCommand())
+                {
+                    command.CommandText = LastQuery;
+                    using (var reader = await command.ExecuteReaderAsync())
+                    {
+                        // 結果読み出し
+                        while (reader.Read() == true)
+                        {
+                            begin = (long)reader["MIN"];
+                            end = (long)reader["MAX"];
+                        }
+                    }
+                }
+
+                return (true, begin, end);
+            }
+            catch (Exception ex)
+            {
+                LastErrorMessage = $"Query Failed: {ex.Message}";
+                return (false, 0, 0);
+            }
+        }
 
         public async Task<bool> QueryGetTaskCode<T>(ICollection<(T code,T name)> list)
         {

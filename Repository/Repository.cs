@@ -19,6 +19,7 @@ namespace Repository
         ReactivePropertySlim<bool> IsConnect { get; set; }
         ReactivePropertySlim<bool> IsLoading { get; set; }
         List<(string code, string name)> TaskCodeList { get; set; }
+        (long begin, long end) DateRange { get; set; }
         DataTable QueryResult { get; set; }
         string ErrorMessage { get; set; }
 
@@ -38,6 +39,7 @@ namespace Repository
         public ReactivePropertySlim<bool> IsLoading { get; set; }
 
         public List<(string code, string name)> TaskCodeList { get; set; } = new List<(string code, string name)>();
+        public (long begin, long end) DateRange { get; set; } = (0, 0);
 
         public DataTable QueryResult { get; set; }
         public string ErrorMessage { get; set; }
@@ -167,10 +169,19 @@ namespace Repository
 
         public async Task<bool> Update()
         {
+            // Taskコードリスト更新
             TaskCodeList.Clear();
-            var result = await sqlite.QueryGetTaskCode<string>(TaskCodeList);
+            var result1 = await sqlite.QueryGetTaskCode<string>(TaskCodeList);
+            // ログ日時最小最大を更新
+            var result2 = await sqlite.QueryGetDateRange();
+            if (result2.Item1)
+            {
+                DateRange = (result2.Item2, result2.Item3);
+            }
+
+            // エラーメッセージ更新
             ErrorMessage = sqlite.LastErrorMessage;
-            return result;
+            return (result1 && result2.Item1);
         }
 
         public async Task<bool> QueryExecute(string query)

@@ -196,6 +196,8 @@ namespace TaskTimeAmasser
                         var result = await repository.Load(LogDirPath.Value);
                         if (result)
                         {
+                            await repository.Update();
+                            UpdateQueryInfo();
                             UpdateQueryResultNotify("Logファイル取り込み正常終了");
                         }
                         else
@@ -237,8 +239,11 @@ namespace TaskTimeAmasser
                     DialogMessage.Value = "Query Executing ...";
                     var result = await DialogHost.Show(this.dialog, async delegate (object sender, DialogOpenedEventArgs args)
                     {
-                        var q = MakeQuerySelectTaskList();
-                        var r = await ExecuteQuery(q);
+                        var r = await Task.Run(async () =>
+                        {
+                            var q = MakeQuerySelectTaskList();
+                            return await ExecuteQuery(q);
+                        });
                         UpdateDbView(r, QueryResultMode.TaskList);
                         args.Session.Close(false);
                     });
@@ -251,8 +256,11 @@ namespace TaskTimeAmasser
                     DialogMessage.Value = "Query Executing ...";
                     var result = await DialogHost.Show(this.dialog, async delegate (object sender, DialogOpenedEventArgs args)
                     {
-                        var q = MakeQuerySelectCodeSum();
-                        var r = await ExecuteQuery(q);
+                        var r = await Task.Run(async () =>
+                        {
+                            var q = MakeQuerySelectCodeSum();
+                            return await ExecuteQuery(q);
+                        });
                         UpdateDbView(r, QueryResultMode.Other);
                         args.Session.Close(false);
                     });
@@ -264,7 +272,7 @@ namespace TaskTimeAmasser
             FilterTermEnd = new ReactivePropertySlim<DateTime>(DateTime.Now);
             FilterTermEnd
                 .AddTo(Disposables);
-            FilterTermUnitSelectIndex = new ReactivePropertySlim<int>(0);
+            FilterTermUnitSelectIndex = new ReactivePropertySlim<int>(1);
             FilterTermUnitSelectIndex
                 .AddTo(Disposables);
             QueryPresetGetCodeSumTerm = repository.IsConnect
@@ -382,6 +390,7 @@ namespace TaskTimeAmasser
 
         private void UpdateQueryInfo()
         {
+            // フィルタ用タスクコードリスト更新
             FilterTaskCode.Clear();
             FilterTaskCode.Add("<指定なし>");
             foreach (var item in repository.TaskCodeList)
@@ -389,6 +398,12 @@ namespace TaskTimeAmasser
                 FilterTaskCode.Add(item.code);
             }
             FilterTaskCodeSelectIndex.Value = 0;
+            // 集計用日時更新
+            if (repository.DateRange.begin != 0 && repository.DateRange.end != 0)
+            {
+                FilterTermBegin.Value = DateTime.FromBinary(repository.DateRange.begin);
+                FilterTermEnd.Value = DateTime.FromBinary(repository.DateRange.end);
+            }
         }
 
         private string MakeQuerySelectTaskList()
