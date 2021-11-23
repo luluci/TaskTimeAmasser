@@ -30,25 +30,57 @@ namespace TaskTimeAmasser
             ((MainWindowViewModel)this.DataContext).dialog = this.dialog;
         }
 
-        private void DataGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+
+        private void DataGrid_ContextMenuItem_AllSelect_Click(object sender, RoutedEventArgs e)
         {
-            var elem = e.MouseDevice.DirectlyOver as FrameworkElement;
-            if (elem != null)
+            try
             {
-                DataGridCell cell = elem.Parent as DataGridCell;
-                if (cell == null)
-                {
-                    // ParentでDataGridCellが拾えなかった時はTemplatedParentを参照
-                    // （Borderをダブルクリックした時）
-                    cell = elem.TemplatedParent as DataGridCell;
-                }
-                if (cell != null)
-                {
-                    // ここでcellの内容を処理
-                    // （cell.DataContextにバインドされたものが入っているかと思います）
-                    
-                    MessageBox.Show($"{cell.Column.DisplayIndex}");
-                }
+                var item = (MenuItem)sender;
+                var cmenu = (ContextMenu)item.Parent;
+                var target = (DataGrid)cmenu.PlacementTarget;
+                target.SelectAll();
+                target.UpdateLayout();
+                target.Focus();
+            }
+            catch
+            {
+                // 何もしない
+            }
+        }
+
+        private void DataGrid_ContextMenuItem_CopyToClipboardIncludeHeader_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var item = (MenuItem)sender;
+                var cmenu = (ContextMenu)item.Parent;
+                var target = (DataGrid)cmenu.PlacementTarget;
+                var mode = target.ClipboardCopyMode;
+                target.ClipboardCopyMode = DataGridClipboardCopyMode.IncludeHeader;
+                ApplicationCommands.Copy.Execute(null, target);
+                target.ClipboardCopyMode = mode;
+            }
+            catch
+            {
+                // 何もしない
+            }
+        }
+
+        private void DataGrid_ContextMenuItem_CopyToClipboardExcludeHeader_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var item = (MenuItem)sender;
+                var cmenu = (ContextMenu)item.Parent;
+                var target = (DataGrid)cmenu.PlacementTarget;
+                var mode = target.ClipboardCopyMode;
+                target.ClipboardCopyMode = DataGridClipboardCopyMode.ExcludeHeader;
+                ApplicationCommands.Copy.Execute(null, target);
+                target.ClipboardCopyMode = mode;
+            }
+            catch
+            {
+                // 何もしない
             }
         }
     }

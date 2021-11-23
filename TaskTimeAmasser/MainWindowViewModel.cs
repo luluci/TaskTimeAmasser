@@ -11,6 +11,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using MaterialDesignThemes.Wpf;
+using Prism.Commands;
 using Prism.Ioc;
 using Prism.Mvvm;
 using Reactive.Bindings;
@@ -328,7 +329,8 @@ namespace TaskTimeAmasser
             QueryResult = new ReactiveProperty<DataTable>(dbNotify);
             QueryDoubleClick = new ReactiveCommand<MouseButtonEventArgs>();
             QueryDoubleClick
-                .WithSubscribe(OnDoubleClickQueryResult);
+                .WithSubscribe(OnDoubleClickQueryResult)
+                .AddTo(Disposables);
         }
 
         private void OnDoubleClickQueryResult(MouseButtonEventArgs e)
