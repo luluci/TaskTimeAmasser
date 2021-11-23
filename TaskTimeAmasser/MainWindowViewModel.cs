@@ -38,6 +38,7 @@ namespace TaskTimeAmasser
         public ReactivePropertySlim<string> LogDirLoadText { get; set; }
         public AsyncReactiveCommand LogDirLoad { get; set; }
         // Query Preset
+        // Filter全検索
         public ReactiveCollection<string> FilterTaskCode { get; }
         public ReactivePropertySlim<int> FilterTaskCodeSelectIndex { get; set; }
         public ReactivePropertySlim<string> FilterTaskCodeSelectItem { get; set; }
@@ -46,6 +47,8 @@ namespace TaskTimeAmasser
         public ReactivePropertySlim<string> FilterToolTip { get; set; }
         public AsyncReactiveCommand QueryPresetGetTaskList { get; }
         public AsyncReactiveCommand QueryPresetGetCodeSum { get; }
+        // 期間集計
+        public ReactivePropertySlim<bool> ReflectFilterQueryResultDate { get; set; }
         public ReactivePropertySlim<DateTime> FilterTermBegin { get; set; }
         public ReactivePropertySlim<DateTime> FilterTermEnd { get; set; }
         public ReactivePropertySlim<int> FilterTermUnitSelectIndex { get; set; }
@@ -138,8 +141,21 @@ namespace TaskTimeAmasser
                             // Message通知
                             if (repository.IsConnect.Value)
                             {
-                                await repository.Update();
-                                UpdateQueryInfo();
+                                bool r;
+                                // タスクコードリスト取得
+                                r = await repository.UpdateTaskCodeList();
+                                if (r)
+                                {
+                                    UpdateQueryInfo();
+                                }
+                                // レコード日時最小最大を取得
+                                // ここでは必ず設定する
+                                // ReflectFilterQueryResultDate.Value
+                                r = await repository.UpdateDateRange(MakeQuerySelectDateRange());
+                                if (r)
+                                {
+                                    UpdateQueryDateRange();
+                                }
                                 UpdateQueryResultNotify("DB接続しました");
                             }
                             else
@@ -188,8 +204,23 @@ namespace TaskTimeAmasser
                         var result = await repository.Load(LogDirPath.Value);
                         if (result)
                         {
-                            await repository.Update();
-                            UpdateQueryInfo();
+                            bool r;
+                            // タスクコードリスト更新
+                            r = await repository.UpdateTaskCodeList();
+                            if (r)
+                            {
+                                UpdateQueryInfo();
+                            }
+                            // 日時範囲更新
+                            // レコード内日時範囲反映設定が有効であれば更新する
+                            if (ReflectFilterQueryResultDate.Value)
+                            {
+                                r = await repository.UpdateDateRange(MakeQuerySelectDateRange());
+                                if (r)
+                                {
+                                    UpdateQueryDateRange();
+                                }
+                            }
                             UpdateQueryResultNotify("Logファイル取り込み正常終了");
                         }
                         else
@@ -251,12 +282,28 @@ namespace TaskTimeAmasser
                         var r = await Task.Run(async () =>
                         {
                             var q = MakeQuerySelectCodeSum();
-                            return await ExecuteQuery(q);
+                            var qr = await ExecuteQuery(q);
+                            if (qr)
+                            {
+                                // レコード内日時範囲反映設定が有効であれば更新する
+                                if (ReflectFilterQueryResultDate.Value)
+                                {
+                                    var dateResult = await repository.UpdateDateRange(MakeQuerySelectDateRange());
+                                    if (dateResult)
+                                    {
+                                        UpdateQueryDateRange();
+                                    }
+                                }
+                            }
+                            return qr;
                         });
                         UpdateDbView(r, QueryResultMode.Other);
                         args.Session.Close(false);
                     });
                 })
+                .AddTo(Disposables);
+            ReflectFilterQueryResultDate = new ReactivePropertySlim<bool>(true);
+            ReflectFilterQueryResultDate
                 .AddTo(Disposables);
             FilterTermBegin = new ReactivePropertySlim<DateTime>(DateTime.Now);
             FilterTermBegin
@@ -391,6 +438,10 @@ namespace TaskTimeAmasser
                 FilterTaskCode.Add(item.code);
             }
             FilterTaskCodeSelectIndex.Value = 0;
+        }
+
+        private void UpdateQueryDateRange()
+        {
             // 集計用日時更新
             if (repository.DateRange.begin != 0 && repository.DateRange.end != 0)
             {
@@ -406,6 +457,81 @@ namespace TaskTimeAmasser
             query.AppendLine(@"SELECT DISTINCT t.task_code AS コード, t.task_name AS タスク名, a.task_alias_name AS タスクエイリアス");
             query.AppendLine(@"  FROM work_times w, tasks t, task_aliases a");
             query.AppendLine(@"  WHERE w.task_id = t.task_id AND w.task_alias_id = a.task_alias_id");
+            query.Append(@";");
+            return query.ToString();
+        }
+
+        private string MakeQuerySelectDateRange()
+        {
+            var filter = new QueryFilterTask
+            {
+                TaskCode = FilterTaskCodeSelectItem.Value,
+                TaskName = FilterTaskName.Value,
+                TaskAlias = FilterTaskAlias.Value,
+            };
+            filter.Init();
+            // クエリ作成
+            if (!filter.IsActive)
+            {
+                return "SELECT max(w.date) AS MAX, min(w.date) AS MIN FROM work_times w;";
+            }
+            else
+            {
+                return MakeQuerySelectDateRangeFilter(filter);
+            }
+        }
+        private string MakeQuerySelectDateRangeFilter(QueryFilterTask filter)
+        {
+            // クエリ作成
+            var query = new StringBuilder();
+            query.AppendLine(@"SELECT max(time_tbl.date) AS MAX, min(time_tbl.date) AS MIN");
+            query.AppendLine(@"FROM");
+            query.AppendLine(@"  (SELECT w.date");
+            query.AppendLine(@"   FROM");
+            query.AppendLine(@"     work_times w");
+            // タスクフィルターサブテーブル
+            if (filter.EnableTasks)
+            {
+                // タスク名とタスクIDの両方をフィルターするか？
+                var partAnd = "";
+                if (filter.EnableTaskCode && filter.EnableTaskName)
+                {
+                    partAnd = " AND ";
+                }
+                query.AppendLine(@"     ,");
+                query.AppendLine($@"     (SELECT t.task_id AS task_id FROM tasks t");
+                query.AppendLine($@"      WHERE");
+                if (filter.EnableTaskName)
+                {
+                    query.AppendLine($@"        t.task_name GLOB '{filter.TaskName}' {partAnd}");
+                }
+                if (filter.EnableTaskCode)
+                {
+                    query.AppendLine($@"        t.task_code GLOB '{filter.TaskCode}'");
+                }
+                query.AppendLine($@"     ) AS filter_task");
+            }
+            // タスクエイリアスフィルターサブテーブル
+            if (filter.EnableTaskAlias)
+            {
+                query.AppendLine(@"     ,");
+                query.AppendLine($@"     (SELECT a.task_alias_id AS alias_id FROM task_aliases a WHERE a.task_alias_name GLOB '{filter.TaskAlias}') AS filter_alias");
+            }
+            query.AppendLine(@"   WHERE");
+            if (filter.EnableTasks)
+            {
+                var partAnd = "";
+                if (filter.EnableTaskAlias)
+                {
+                    partAnd = "AND";
+                }
+                query.AppendLine($@"     w.task_id = filter_task.task_id {partAnd}");
+            }
+            if (filter.EnableTaskAlias)
+            {
+                query.AppendLine(@"     w.task_alias_id = filter_alias.alias_id");
+            }
+            query.AppendLine(@"  ) AS time_tbl");
             query.Append(@";");
             return query.ToString();
         }

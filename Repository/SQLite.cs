@@ -969,17 +969,13 @@ namespace Repository
             }
         }
 
-        public async Task<(bool,long,long)> QueryGetDateRange()
+        public async Task<(bool,long,long)> QueryGetDateRange(string query)
         {
             try
             {
                 long begin = 0;
                 long end = 0;
-                // クエリ作成
-                var query = new StringBuilder();
-                query.Append(@"SELECT max(w.date) AS MAX, min(w.date) AS MIN FROM work_times w");
-                query.Append(@";");
-                LastQuery = query.ToString();
+                LastQuery = query;
                 // クエリ実行
                 using (var command = conn.CreateCommand())
                 {

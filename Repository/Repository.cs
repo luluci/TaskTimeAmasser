@@ -26,7 +26,8 @@ namespace Repository
         Task<bool> Connect(string repoPath);
         Task Close();
         Task<bool> Load(string logPath);
-        Task<bool> Update();
+        Task<bool> UpdateTaskCodeList();
+        Task<bool> UpdateDateRange(string query);
         Task<bool> QueryExecute(string query);
     }
 
@@ -169,13 +170,21 @@ namespace Repository
             return existLog;
         }
 
-        public async Task<bool> Update()
+        public async Task<bool> UpdateTaskCodeList()
         {
             // Taskコードリスト更新
             TaskCodeList.Clear();
-            var result1 = await sqlite.QueryGetTaskCode<string>(TaskCodeList);
+            var result = await sqlite.QueryGetTaskCode<string>(TaskCodeList);
+
+            // エラーメッセージ更新
+            ErrorMessage = sqlite.LastErrorMessage;
+            return result;
+        }
+
+        public async Task<bool> UpdateDateRange(string query)
+        {
             // ログ日時最小最大を更新
-            var result2 = await sqlite.QueryGetDateRange();
+            var result2 = await sqlite.QueryGetDateRange(query);
             if (result2.Item1)
             {
                 DateRange = (result2.Item2, result2.Item3);
@@ -183,7 +192,7 @@ namespace Repository
 
             // エラーメッセージ更新
             ErrorMessage = sqlite.LastErrorMessage;
-            return (result1 && result2.Item1);
+            return result2.Item1;
         }
 
         public async Task<bool> QueryExecute(string query)
