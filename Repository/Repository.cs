@@ -23,7 +23,7 @@ namespace Repository
         DataTable QueryResult { get; set; }
         string ErrorMessage { get; set; }
 
-        Task Connect(string repoPath);
+        Task<bool> Connect(string repoPath);
         Task Close();
         Task<bool> Load(string logPath);
         Task<bool> Update();
@@ -61,7 +61,7 @@ namespace Repository
         }
 
 
-        public async Task Connect(string repoPath)
+        public async Task<bool> Connect(string repoPath)
         {
             if (!IsConnect.Value)
             {
@@ -77,6 +77,7 @@ namespace Repository
                     {
                         IsConnect.Value = false;
                     }
+                    ErrorMessage = sqlite.LastErrorMessage;
                 }
                 catch (Exception ex)
                 {
@@ -84,6 +85,7 @@ namespace Repository
                     IsConnect.Value = false;
                 }
             }
+            return IsConnect.Value;
         }
 
         public async Task Close()

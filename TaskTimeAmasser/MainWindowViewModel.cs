@@ -86,16 +86,6 @@ namespace TaskTimeAmasser
             // DBFilePath設定
             // DB接続/切断ボタン表示テキスト
             DBFileConnectText = new ReactivePropertySlim<string>("DB接続");
-            /*
-            IsEnableDbCtrl = repository.IsConnect
-                .ToReactivePropertySlimAsSynchronized(
-                    x => x.Value
-                    //(x) => { return !x; },
-                    //(x) => { return x; },
-                    //ReactivePropertyMode.DistinctUntilChanged
-                )
-                .AddTo(Disposable);
-                */
             // DBファイル指定有効無効
             IsEnableDbCtrl = repository.IsConnect
                 .Inverse()
@@ -143,12 +133,12 @@ namespace TaskTimeAmasser
                         var result = await DialogHost.Show(this.dialog, async delegate (object sender, DialogOpenedEventArgs args)
                         {
                             //Console.WriteLine($"{Thread.CurrentThread.ManagedThreadId}: DBFileConnect/WithSubscribe START");
-                            await repository.Connect(config.DBFilePath.Value);
-                            await repository.Update();
-                            UpdateQueryInfo();
+                            var connResult = await repository.Connect(config.DBFilePath.Value);
                             // Message通知
                             if (repository.IsConnect.Value)
                             {
+                                await repository.Update();
+                                UpdateQueryInfo();
                                 UpdateQueryResultNotify("DB接続しました");
                             }
                             else
