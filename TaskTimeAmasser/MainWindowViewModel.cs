@@ -126,6 +126,7 @@ namespace TaskTimeAmasser
                     if (repository.IsConnect.Value)
                     {
                         await repository.Close();
+                        UpdateQueryResultNotify("DB切断しました");
                     }
                     else
                     {
@@ -153,7 +154,7 @@ namespace TaskTimeAmasser
                 .AddTo(Disposables);
             // LogDir設定
             // Logファイルロードボタン表示テキスト
-            LogDirLoadText = new ReactivePropertySlim<string>("ロード");
+            LogDirLoadText = new ReactivePropertySlim<string>("ログファイル取り込み");
             // Logファイルロード有効無効
             IsEnableRepoLoad = repository.IsConnect
                 .ToReadOnlyReactivePropertySlim()
