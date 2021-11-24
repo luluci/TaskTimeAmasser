@@ -54,6 +54,7 @@ namespace TaskTimeAmasser
         public ReactivePropertySlim<DateTime> FilterTermEnd { get; set; }
         public ReactivePropertySlim<int> FilterTermUnitSelectIndex { get; set; }
         public AsyncReactiveCommand QueryPresetGetSubTotalTerm { get; }
+        public AsyncReactiveCommand QueryPresetGetItemTotalTerm { get; }
         // Query Manual
         public ReactivePropertySlim<string> QueryText { get; set; }
         public ReactivePropertySlim<bool> EnablePresetUpdateQueryText { get; set; }
@@ -355,6 +356,23 @@ namespace TaskTimeAmasser
                         var r = await Task.Run(async () =>
                         {
                             var q = MakeQuerySelectSubTotalTerm();
+                            return await ExecuteQuery(q);
+                        });
+                        UpdateDbView(r, QueryResultMode.Other);
+                        args.Session.Close(false);
+                    });
+                })
+                .AddTo(Disposables);
+            QueryPresetGetItemTotalTerm = repository.IsConnect
+                .ToAsyncReactiveCommand()
+                .WithSubscribe(async () =>
+                {
+                    DialogMessage.Value = "Query Executing ...";
+                    var result = await DialogHost.Show(this.dialog, async delegate (object sender, DialogOpenedEventArgs args)
+                    {
+                        var r = await Task.Run(async () =>
+                        {
+                            var q = MakeQuerySelectItemTotalTerm();
                             return await ExecuteQuery(q);
                         });
                         UpdateDbView(r, QueryResultMode.Other);
@@ -720,6 +738,26 @@ namespace TaskTimeAmasser
             filter.Init();
             return MakeQuerySelectItemTotalImpl(filter);
         }
+
+        private string MakeQuerySelectItemTotalTerm()
+        {
+            var filter = new QueryFilterTask
+            {
+                TaskCode = FilterTaskCodeSelectItem.Value,
+                TaskName = FilterTaskName.Value,
+                TaskAlias = FilterTaskAlias.Value,
+            };
+            filter.Init();
+            var term = new QueryFilterTerm
+            {
+                Begin = FilterTermBegin.Value,
+                End = FilterTermEnd.Value,
+                Unit = FilterTermUnitSelectIndex.Value
+            };
+            term.Init();
+            return MakeQuerySelectItemTotalImpl(filter, term);
+        }
+
         private string MakeQuerySelectItemTotalImpl(QueryFilterTask filter, QueryFilterTerm term = null)
         {
             // クエリ作成
