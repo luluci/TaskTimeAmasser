@@ -11,7 +11,7 @@
         xmlns:rp="clr-namespace:Reactive.Bindings.Interactivity;assembly=ReactiveProperty.WPF"
         mc:Ignorable="d"
         prism:ViewModelLocator.AutoWireViewModel="True"
-        Title="MainWindow" Height="889.518" Width="973.75">
+        Title="MainWindow" Height="889.518" Width="1081.75">
     <bh:Interaction.Triggers>
         <bh:EventTrigger EventName="Closed">
             <l:DataContextDisposeAction />

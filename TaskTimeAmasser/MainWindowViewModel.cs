@@ -674,7 +674,7 @@ namespace TaskTimeAmasser
             query.AppendLine(@"FROM (");
             query.AppendLine(@"  (");
             query.AppendLine(@"   subtasks");
-            if (filter.IsActive)
+            if (filter.IsActive || filter.EnableExcludeTaskCode)
             {
                 query.AppendLine(@"   LEFT OUTER JOIN tasks");
             }
@@ -686,7 +686,7 @@ namespace TaskTimeAmasser
             query.AppendLine(@"  NATURAL LEFT OUTER JOIN work_times");
             query.AppendLine(@") AS time_tbl");
             // WHERE: 条件設定
-            if (filter.IsActive)
+            if (filter.IsActive || filter.EnableExcludeTaskCode)
             {
                 var and = "";
                 query.AppendLine(@"WHERE");
@@ -827,7 +827,7 @@ namespace TaskTimeAmasser
             query.AppendLine(@"     LEFT OUTER JOIN ( SELECT subtask_id, subtask_alias_id, item_id, item_alias_id, task_id, task_alias_id FROM work_times ) AS w");
             query.AppendLine(@"  ) AS item_tbl");
             query.AppendLine(@"  NATURAL LEFT OUTER JOIN items NATURAL LEFT OUTER JOIN subtasks");
-            if (filter.IsActive)
+            if (filter.IsActive || filter.EnableExcludeTaskCode)
             {
                 query.AppendLine(@"  NATURAL LEFT OUTER JOIN tasks");
             }
@@ -837,7 +837,7 @@ namespace TaskTimeAmasser
             }
             query.AppendLine(@"  ) AS time_tbl");
             // WHERE: 条件設定
-            if (filter.IsActive)
+            if (filter.IsActive || filter.EnableExcludeTaskCode)
             {
                 query.AppendLine(@"WHERE");
                 var and = "";
@@ -951,7 +951,7 @@ namespace TaskTimeAmasser
             query.AppendLine(@"FROM");
             query.AppendLine(@"  work_times");
             query.AppendLine(@"  NATURAL LEFT OUTER JOIN persons");
-            if (filter.IsActive)
+            if (filter.IsActive || filter.EnableExcludeTaskCode)
             {
                 query.AppendLine(@"  NATURAL LEFT OUTER JOIN tasks");
             }
@@ -960,7 +960,7 @@ namespace TaskTimeAmasser
                 query.AppendLine(@"  NATURAL LEFT OUTER JOIN task_aliases");
             }
             // WHERE: 条件設定
-            if (filter.IsActive)
+            if (filter.IsActive || filter.EnableExcludeTaskCode)
             {
                 var and = "";
                 query.AppendLine(@"WHERE");
@@ -1155,7 +1155,7 @@ namespace TaskTimeAmasser
             //
             EnableExcludeTaskCode = ExcludeTaskCode.Length != 0;
             //
-            IsActive = (EnableTaskCode || EnableTaskName || EnableTaskAlias || EnableExcludeTaskCode);
+            IsActive = (EnableTaskCode || EnableTaskName || EnableTaskAlias);
         }
 
     }
