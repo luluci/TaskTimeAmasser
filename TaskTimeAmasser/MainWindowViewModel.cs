@@ -48,6 +48,7 @@ namespace TaskTimeAmasser
         public AsyncReactiveCommand QueryPresetGetTaskList { get; }
         public AsyncReactiveCommand QueryPresetGetSubTotal { get; }
         public AsyncReactiveCommand QueryPresetGetItemTotal { get; }
+        public ReactivePropertySlim<string> ExcludeTaskCode { get; set; }
         // 期間集計
         public ReactivePropertySlim<bool> ReflectFilterQueryResultDate { get; set; }
         public ReactivePropertySlim<DateTime> FilterTermBegin { get; set; }
@@ -256,6 +257,10 @@ namespace TaskTimeAmasser
                 .AddTo(Disposables);
             FilterToolTip = new ReactivePropertySlim<string>("*       任意の0文字以上の文字列\r\n?       任意の1文字\r\n[abc]  a or b or cのいずれかに一致\r\n[a-d]  aからdまでにいずれかに一致");
             FilterToolTip
+                .AddTo(Disposables);
+            // DBファイルパス
+            ExcludeTaskCode = config.QueryExcludeTaskCode
+                .ToReactivePropertySlimAsSynchronized(x => x.Value)
                 .AddTo(Disposables);
             //QueryPresetGetTaskList = new AsyncReactiveCommand();
             QueryPresetGetTaskList = repository.IsConnect
