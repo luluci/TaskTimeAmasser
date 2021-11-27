@@ -659,6 +659,7 @@ namespace TaskTimeAmasser
             query.AppendLine(@"  )");
             query.AppendLine(@"  NATURAL LEFT OUTER JOIN work_times");
             query.AppendLine(@") AS time_tbl");
+            // WHERE: 条件設定
             if (filter.IsActive)
             {
                 var and = "";
@@ -679,6 +680,8 @@ namespace TaskTimeAmasser
                     and = "AND ";
                 }
             }
+            //query.AppendLine(@"  AND NOT time_tbl.subtask_code IN ('CodeX', 'CodeY')");
+            // GROUP BY: グループ定義
             query.AppendLine(@"GROUP BY");
             // エイリアス＞タスク名＞タスクコード　の順でGroup化する
             if (filter.EnableTaskAlias)
