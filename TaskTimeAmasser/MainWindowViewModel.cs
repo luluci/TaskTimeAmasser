@@ -823,10 +823,11 @@ namespace TaskTimeAmasser
             }
             query.AppendLine(@"  ) AS time_tbl");
             // WHERE: 条件設定
+            query.AppendLine(@"WHERE");
+            //query.AppendLine(@"  NOT time_tbl.subtask_code IN ('CodeA', 'CodeD')");
             if (filter.IsActive)
             {
                 var and = "";
-                query.AppendLine(@"WHERE");
                 if (filter.EnableTaskCode)
                 {
                     query.AppendLine($@"  time_tbl.task_code GLOB '{filter.TaskCode}'");
@@ -843,7 +844,6 @@ namespace TaskTimeAmasser
                     and = "AND ";
                 }
             }
-            //query.AppendLine(@"  AND NOT time_tbl.subtask_code IN ('CodeX', 'CodeY')");
             // GROUP BY: グループ定義
             query.AppendLine(@"GROUP BY");
             // エイリアス＞タスク名＞タスクコード　の順でGroup化する
