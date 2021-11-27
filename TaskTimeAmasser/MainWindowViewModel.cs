@@ -55,6 +55,7 @@ namespace TaskTimeAmasser
         public ReactivePropertySlim<int> FilterTermUnitSelectIndex { get; set; }
         public AsyncReactiveCommand QueryPresetGetSubTotalTerm { get; }
         public AsyncReactiveCommand QueryPresetGetItemTotalTerm { get; }
+        public AsyncReactiveCommand QueryPresetGetPersonInfoTerm { get; }
         // Query Manual
         public ReactivePropertySlim<string> QueryText { get; set; }
         public ReactivePropertySlim<bool> EnablePresetUpdateQueryText { get; set; }
@@ -373,6 +374,23 @@ namespace TaskTimeAmasser
                         var r = await Task.Run(async () =>
                         {
                             var q = MakeQuerySelectItemTotalTerm();
+                            return await ExecuteQuery(q);
+                        });
+                        UpdateDbView(r, QueryResultMode.Other);
+                        args.Session.Close(false);
+                    });
+                })
+                .AddTo(Disposables);
+            QueryPresetGetPersonInfoTerm = repository.IsConnect
+                .ToAsyncReactiveCommand()
+                .WithSubscribe(async () =>
+                {
+                    DialogMessage.Value = "Query Executing ...";
+                    var result = await DialogHost.Show(this.dialog, async delegate (object sender, DialogOpenedEventArgs args)
+                    {
+                        var r = await Task.Run(async () =>
+                        {
+                            var q = MakeQuerySelectPersonInfoTerm();
                             return await ExecuteQuery(q);
                         });
                         UpdateDbView(r, QueryResultMode.Other);
@@ -862,80 +880,124 @@ namespace TaskTimeAmasser
             query.Append(@";");
             return query.ToString();
         }
-        
-        private void MakeQuerySelectItemTotalImpl_InsertTimeTblNoFilter(StringBuilder query, string indent)
+
+
+        private string MakeQuerySelectPersonInfoTerm()
         {
-            // フィルター無しTimeTbl作成
-            // 「タスクID, タスクエイリアスID, サブタスクID, サブタスクコード, 工数」のサブクエリ作成
-            // subtasksテーブルをUNIONで合成してサブタスクコードをすべて含むテーブルとする。工数はゼロとし、IDは通常IDとはマッチしない-1とする。
-            query.AppendLine($@"{indent}SELECT w.subtask_id AS subtask_id, s.subtask_code AS subtask_code, i.item_id AS item_id, i.item_name AS item_name, w.date AS date, w.time AS time");
-            query.AppendLine($@"{indent}FROM subtasks s, items i, work_times w");
-            query.AppendLine($@"{indent}WHERE w.subtask_id = s.subtask_id AND w.item_id = i.item_id");
-            query.AppendLine($@"{indent}  UNION ALL");
-            query.AppendLine($@"{indent}SELECT s.subtask_id, s.subtask_code, -1, -1, 0, 0 FROM subtasks s");
-            query.AppendLine($@"{indent}  UNION ALL");
-            query.AppendLine($@"{indent}SELECT -1, -1, i.item_id, i.item_name, 0, 0 FROM items i");
+            var filter = new QueryFilterTask
+            {
+                TaskCode = FilterTaskCodeSelectItem.Value,
+                TaskName = FilterTaskName.Value,
+                TaskAlias = FilterTaskAlias.Value,
+            };
+            filter.Init();
+            var term = new QueryFilterTerm
+            {
+                Begin = FilterTermBegin.Value,
+                End = FilterTermEnd.Value,
+                Unit = FilterTermUnitSelectIndex.Value
+            };
+            term.Init();
+            return MakeQuerySelectPersonInfoTermImpl(filter, term);
         }
 
-        private void MakeQuerySelectItemTotalImpl_InsertTimeTblFilter(StringBuilder query, QueryFilterTask filter, string indent)
+        private string MakeQuerySelectPersonInfoTermImpl(QueryFilterTask filter, QueryFilterTerm term)
         {
-            query.AppendLine($@"{indent}SELECT maintbl.subtask_id AS subtask_id, maintbl.subtask_code AS subtask_code, maintbl.item_id AS item_id, maintbl.item_name AS item_name, maintbl.date AS date, maintbl.time AS time");
-            query.AppendLine($@"{indent}FROM");
-            // 工数データサブテーブル
-            // 「タスクID, タスクエイリアスID, サブタスクID, サブタスクコード, 工数」のサブクエリ作成
-            // subtasksテーブルをUNIONで合成してサブタスクコードをすべて含むテーブルとする。工数はゼロとし、IDは通常IDとはマッチしない-1とする。
-            query.AppendLine($@"{indent}  (SELECT w.subtask_id AS subtask_id, s.subtask_code AS subtask_code, i.item_id AS item_id, i.item_name AS item_name, w.date AS date, w.time AS time, w.task_alias_id AS task_alias_id, w.task_id AS task_id");
-            query.AppendLine($@"{indent}   FROM subtasks s, items i, work_times w");
-            query.AppendLine($@"{indent}   WHERE w.subtask_id = s.subtask_id AND w.item_id = i.item_id");
-            query.AppendLine($@"{indent}     UNION ALL");
-            query.AppendLine($@"{indent}   SELECT s.subtask_id, s.subtask_code, -1, -1, 0, 0, -1, -1 FROM subtasks s");
-            query.AppendLine($@"{indent}     UNION ALL");
-            query.AppendLine($@"{indent}   SELECT -1, -1, i.item_id, i.item_name, 0, 0, -1, -1 FROM items i) AS maintbl");
-            // タスクフィルターサブテーブル
-            if (filter.EnableTasks)
+            // クエリ作成
+            var query = new StringBuilder();
+            query.AppendLine(@"SELECT");
+            query.AppendLine(@"  person_name AS '名前',");
+            // フィルタをかけるときはタスク情報も表示する
+            if (filter.IsActive)
             {
-                // タスク名とタスクIDの両方をフィルターするか？
-                var partAnd = "";
-                if (filter.EnableTaskCode && filter.EnableTaskName)
-                {
-                    partAnd = " AND ";
-                }
-                query.AppendLine($@"{indent}  ,");
-                query.AppendLine($@"{indent}  (SELECT t.task_id AS task_id FROM tasks t");
-                query.AppendLine($@"{indent}   WHERE");
-                if (filter.EnableTaskName)
-                {
-                    query.AppendLine($@"{indent}     t.task_name GLOB '{filter.TaskName}' {partAnd}");
-                }
+                query.AppendLine(@"  task_code AS 'タスクコード',");
+                query.AppendLine(@"  task_name AS 'タスク名',");
+            }
+            if (filter.EnableTaskAlias)
+            {
+                query.AppendLine(@"  task_alias_name AS 'タスクエイリアス',");
+            }
+            // ログ数情報
+            // 基本的に期間指定ありき
+            if (!term.IsActive)
+            {
+                // throw;
+            }
+            for (int i = 0; i < term.Terms.Count; i++)
+            {
+                var thre = term.Terms[i];
+                var comma = i == term.Terms.Count - 1 ? string.Empty : ",";
+                query.AppendLine($@"  Sum(CASE WHEN {thre.boundLo} <= date AND date < {thre.boundHi} THEN 1 ELSE 0 END) AS 'ログ数({thre.date})'{comma}");
+            }
+            query.AppendLine(@"FROM");
+            query.AppendLine(@"  work_times");
+            query.AppendLine(@"  NATURAL LEFT OUTER JOIN persons");
+            if (filter.IsActive)
+            {
+                query.AppendLine(@"  NATURAL LEFT OUTER JOIN tasks");
+            }
+            if (filter.EnableTaskAlias)
+            {
+                query.AppendLine(@"  NATURAL LEFT OUTER JOIN task_aliases");
+            }
+            query.AppendLine(@"");
+            // WHERE: 条件設定
+            if (filter.IsActive)
+            {
+                var and = "";
+                query.AppendLine(@"WHERE");
                 if (filter.EnableTaskCode)
                 {
-                    query.AppendLine($@"{indent}     t.task_code GLOB '{filter.TaskCode}'");
+                    query.AppendLine($@"  task_code GLOB '{filter.TaskCode}'");
+                    and = "AND ";
                 }
-                query.AppendLine($@"{indent}  ) AS filter_task");
-            }
-            // タスクエイリアスフィルターサブテーブル
-            if (filter.EnableTaskAlias)
-            {
-                query.AppendLine($@"{indent}  ,");
-                query.AppendLine($@"{indent}  (SELECT a.task_alias_id AS task_alias_id FROM task_aliases a");
-                query.AppendLine($@"{indent}   WHERE a.task_alias_name GLOB '{filter.TaskAlias}') AS filter_alias");
-            }
-            query.AppendLine($@"{indent}WHERE");
-            if (filter.EnableTasks)
-            {
-                var partAnd = "";
+                if (filter.EnableTaskName)
+                {
+                    query.AppendLine($@"  {and}task_name GLOB '{filter.TaskName}'");
+                    and = "AND ";
+                }
                 if (filter.EnableTaskAlias)
                 {
-                    partAnd = "AND";
+                    query.AppendLine($@"  {and}task_alias_name GLOB '{filter.TaskAlias}'");
+                    and = "AND ";
                 }
-                query.AppendLine($@"{indent}  maintbl.task_id IN (filter_task.task_id, -1) {partAnd}");
             }
+            //query.AppendLine(@"  AND NOT time_tbl.subtask_code IN ('CodeX', 'CodeY')");
+            // GROUP BY: グループ定義
+            query.AppendLine(@"GROUP BY");
+            // エイリアス＞タスク名＞タスクコード　の順でGroup化する
             if (filter.EnableTaskAlias)
             {
-                query.AppendLine($@"{indent}  maintbl.task_alias_id IN (filter_alias.task_alias_id, -1)");
+                query.AppendLine(@"  task_alias_name,");
             }
+            else if (filter.EnableTaskName)
+            {
+                query.AppendLine(@"  task_name,");
+            }
+            else if (filter.EnableTaskCode)
+            {
+                query.AppendLine(@"  task_code,");
+            }
+            query.AppendLine(@"  person_id");
+            query.AppendLine(@"ORDER BY");
+            /*
+            if (filter.EnableTaskAlias)
+            {
+                query.AppendLine(@"  time_tbl.task_alias_name,");
+            }
+            else if (filter.EnableTaskName)
+            {
+                query.AppendLine(@"  time_tbl.task_name,");
+            }
+            else if (filter.EnableTaskCode)
+            {
+                query.AppendLine(@"  time_tbl.task_code,");
+            }
+            */
+            query.AppendLine(@"  person_id");
+            query.Append(@";");
+            return query.ToString();
         }
-
 
 
         private async Task<bool> ExecuteQuery(string query)
