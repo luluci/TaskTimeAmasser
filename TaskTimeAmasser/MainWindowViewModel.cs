@@ -585,8 +585,11 @@ namespace TaskTimeAmasser
             return query.ToString();
         }
 
+
+
         private string MakeQuerySelectSubTotal()
         {
+            // フィルタオブジェクト作成
             var filter = new QueryFilterTask
             {
                 TaskCode = FilterTaskCodeSelectItem.Value,
@@ -594,7 +597,9 @@ namespace TaskTimeAmasser
                 TaskAlias = FilterTaskAlias.Value,
             };
             filter.Init();
-            return MakeQuerySelectSubTotalImpl(filter);
+            // ダミー期間定義
+            var term = new QueryFilterTerm();
+            return MakeQuerySelectSubTotalImpl(filter, term);
         }
 
         private string MakeQuerySelectSubTotalTerm()
@@ -616,35 +621,93 @@ namespace TaskTimeAmasser
             return MakeQuerySelectSubTotalImpl(filter, term);
         }
         
-        private string MakeQuerySelectSubTotalImpl(QueryFilterTask filter, QueryFilterTerm term = null)
+        private string MakeQuerySelectSubTotalImpl(QueryFilterTask filter, QueryFilterTerm term)
         {
             // クエリ作成
             var query = new StringBuilder();
             query.AppendLine(@"SELECT");
-            query.AppendLine(@"  s.subtask_code AS 'コード',");
+            // フィルタをかけるときはタスク情報も表示する
+            if (filter.IsActive)
+            {
+                query.AppendLine(@"  time_tbl.task_code AS 'タスクコード',");
+                query.AppendLine(@"  time_tbl.task_name AS 'タスク名',");
+            }
+            if (filter.EnableTaskAlias)
+            {
+                query.AppendLine(@"  time_tbl.task_alias_name AS 'タスクエイリアス',");
+            }
+            // サブタスクコードカラム表示
+            query.AppendLine(@"  time_tbl.subtask_code AS 'コード',");
             // 期間集計指定ありのときはカラム定義を追加する
-            if (!(term is null))
+            if (term.IsActive)
             {
                 // 高速化のためにStringBuilderを渡して追加する
                 MakeQuerySelectSubTotalImpl_InsertTermColumns(query, term);
             }
-            query.AppendLine(@"  Sum(time_tbl.time) AS '工数(合計)'");
-            query.AppendLine(@"FROM");
-            query.AppendLine(@"  subtasks s,");
+            query.AppendLine(@"  Sum(CASE WHEN time_tbl.time IS NULL THEN 0 ELSE time_tbl.time END) AS '工数(合計)'");
+            query.AppendLine(@"FROM (");
             query.AppendLine(@"  (");
+            query.AppendLine(@"   subtasks");
             if (filter.IsActive)
             {
-                MakeQuerySelectSubTotalImpl_InsertTimeTblFilter(query, filter, "   ");
+                query.AppendLine(@"   LEFT OUTER JOIN tasks");
             }
-            else
+            if (filter.EnableTaskAlias)
             {
-                // タスクフィルター無しでのtime_tbl作成クエリを挿入
-                MakeQuerySelectSubTotalImpl_InsertTimeTblNoFilter(query, "   ");
+                query.AppendLine(@"   LEFT OUTER JOIN task_aliases");
             }
-            query.AppendLine(@"  ) AS time_tbl");
-            query.AppendLine(@"WHERE s.subtask_id = time_tbl.subtask_id");
-            query.AppendLine(@"GROUP BY s.subtask_id");
-            query.AppendLine(@"ORDER BY s.subtask_id");
+            query.AppendLine(@"  )");
+            query.AppendLine(@"  NATURAL LEFT OUTER JOIN work_times");
+            query.AppendLine(@") AS time_tbl");
+            if (filter.IsActive)
+            {
+                var and = "";
+                query.AppendLine(@"WHERE");
+                if (filter.EnableTaskCode)
+                {
+                    query.AppendLine($@"  time_tbl.task_code GLOB '{filter.TaskCode}'");
+                    and = "AND ";
+                }
+                if (filter.EnableTaskName)
+                {
+                    query.AppendLine($@"  {and}time_tbl.task_name GLOB '{filter.TaskName}'");
+                    and = "AND ";
+                }
+                if (filter.EnableTaskAlias)
+                {
+                    query.AppendLine($@"  {and}time_tbl.task_alias_name GLOB '{filter.TaskAlias}'");
+                    and = "AND ";
+                }
+            }
+            query.AppendLine(@"GROUP BY");
+            // エイリアス＞タスク名＞タスクコード　の順でGroup化する
+            if (filter.EnableTaskAlias)
+            {
+                query.AppendLine(@"  time_tbl.task_alias_name,");
+            }
+            else if (filter.EnableTaskName)
+            {
+                query.AppendLine(@"  time_tbl.task_name,");
+            }
+            else if (filter.EnableTaskCode)
+            {
+                query.AppendLine(@"  time_tbl.task_code,");
+            }
+            query.AppendLine(@"  time_tbl.subtask_code");
+            query.AppendLine(@"ORDER BY");
+            if (filter.EnableTaskAlias)
+            {
+                query.AppendLine(@"  time_tbl.task_alias_name,");
+            }
+            else if (filter.EnableTaskName)
+            {
+                query.AppendLine(@"  time_tbl.task_name,");
+            }
+            else if (filter.EnableTaskCode)
+            {
+                query.AppendLine(@"  time_tbl.task_code,");
+            }
+            query.AppendLine(@"  time_tbl.subtask_id");
             query.Append(@";");
             return query.ToString();
         }
@@ -655,76 +718,10 @@ namespace TaskTimeAmasser
             for (int i = 0; i < term.Terms.Count; i++)
             {
                 var thre = term.Terms[i];
-                query.AppendLine($@"  Sum(CASE WHEN {thre.boundLo} <= time_tbl.date AND time_tbl.date < {thre.boundHi} THEN time_tbl.time ELSE 0 END) AS '工数({thre.date})',");
+                query.AppendLine($@"  Sum(CASE WHEN time_tbl.time IS NULL THEN 0 WHEN {thre.boundLo} <= time_tbl.date AND time_tbl.date < {thre.boundHi} THEN time_tbl.time ELSE 0 END) AS '工数({thre.date})',");
             }
         }
-
-        private void MakeQuerySelectSubTotalImpl_InsertTimeTblNoFilter(StringBuilder query, string indent)
-        {
-            // フィルター無しTimeTbl作成
-            // 「タスクID, タスクエイリアスID, サブタスクID, サブタスクコード, 工数」のサブクエリ作成
-            // subtasksテーブルをUNIONで合成してサブタスクコードをすべて含むテーブルとする。工数はゼロとし、IDは通常IDとはマッチしない-1とする。
-            query.AppendLine($@"{indent}SELECT w.subtask_id AS subtask_id, s.subtask_code AS subtask_code, w.date AS date, w.time AS time");
-            query.AppendLine($@"{indent}FROM subtasks s, work_times w WHERE w.subtask_id = s.subtask_id");
-            query.AppendLine($@"{indent}UNION ALL");
-            query.AppendLine($@"{indent}SELECT s.subtask_id, s.subtask_code, 0, 0 FROM subtasks s");
-        }
-
-        private void MakeQuerySelectSubTotalImpl_InsertTimeTblFilter(StringBuilder query, QueryFilterTask filter, string indent)
-        {
-            query.AppendLine($@"{indent}SELECT maintbl.subtask_id AS subtask_id, maintbl.subtask_code AS subtask_code, maintbl.date AS date, maintbl.time AS time");
-            query.AppendLine($@"{indent}FROM");
-            // 工数データサブテーブル
-            // 「タスクID, タスクエイリアスID, サブタスクID, サブタスクコード, 工数」のサブクエリ作成
-            // subtasksテーブルをUNIONで合成してサブタスクコードをすべて含むテーブルとする。工数はゼロとし、IDは通常IDとはマッチしない-1とする。
-            query.AppendLine($@"{indent}  (SELECT w.subtask_id AS subtask_id, s.subtask_code AS subtask_code, w.date AS date, w.time AS time, w.task_alias_id AS task_alias_id, w.task_id AS task_id");
-            query.AppendLine($@"{indent}   FROM subtasks s, work_times w WHERE w.subtask_id = s.subtask_id");
-            query.AppendLine($@"{indent}   UNION ALL");
-            query.AppendLine($@"{indent}   SELECT s.subtask_id, s.subtask_code, 0, 0, -1, -1 FROM subtasks s) AS maintbl");
-            // タスクフィルターサブテーブル
-            if (filter.EnableTasks)
-            {
-                // タスク名とタスクIDの両方をフィルターするか？
-                var partAnd = "";
-                if (filter.EnableTaskCode && filter.EnableTaskName)
-                {
-                    partAnd = " AND ";
-                }
-                query.AppendLine($@"{indent}  ,");
-                query.AppendLine($@"{indent}  (SELECT t.task_id AS task_id FROM tasks t");
-                query.AppendLine($@"{indent}   WHERE");
-                if (filter.EnableTaskName)
-                {
-                    query.AppendLine($@"{indent}     t.task_name GLOB '{filter.TaskName}' {partAnd}");
-                }
-                if (filter.EnableTaskCode)
-                {
-                    query.AppendLine($@"{indent}     t.task_code GLOB '{filter.TaskCode}'");
-                }
-                query.AppendLine($@"{indent}  ) AS filter_task");
-            }
-            // タスクエイリアスフィルターサブテーブル
-            if (filter.EnableTaskAlias)
-            {
-                query.AppendLine($@"{indent}  ,");
-                query.AppendLine($@"{indent}  (SELECT a.task_alias_id AS task_alias_id FROM task_aliases a");
-                query.AppendLine($@"{indent}   WHERE a.task_alias_name GLOB '{filter.TaskAlias}') AS filter_alias");
-            }
-            query.AppendLine($@"{indent}WHERE");
-            if (filter.EnableTasks)
-            {
-                var partAnd = "";
-                if (filter.EnableTaskAlias)
-                {
-                    partAnd = "AND";
-                }
-                query.AppendLine($@"{indent}  maintbl.task_id IN (filter_task.task_id, -1) {partAnd}");
-            }
-            if (filter.EnableTaskAlias)
-            {
-                query.AppendLine($@"{indent}  maintbl.task_alias_id IN (filter_alias.task_alias_id, -1)");
-            }
-        }
+        
 
 
         private string MakeQuerySelectItemTotal()
@@ -1022,8 +1019,10 @@ namespace TaskTimeAmasser
 
         public QueryFilterTerm()
         {
-
+            IsActive = false;
         }
+
+        public bool IsActive { get; set; } = false;
 
         public void Init()
         {
@@ -1035,6 +1034,8 @@ namespace TaskTimeAmasser
                 End = temp;
             }
             MakeTerm();
+            // 有効化
+            IsActive = true;
         }
 
         private void MakeTerm()

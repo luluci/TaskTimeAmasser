@@ -1268,7 +1268,10 @@ namespace Repository
         {
             if (File.Exists(FilePath))
             {
-                GetFileDateTime();
+                // ファイル名からログ日時を決定
+                var filefmt = GetFileDateTime();
+                if (!filefmt) return false;
+
                 var fi = new FileInfo(FilePath);
                 // ログフォルダからのパスを含めて、ログファイルのユニークなIDとする
                 {
