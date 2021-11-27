@@ -147,6 +147,8 @@ namespace Repository
              *      item_id           int     foreign key
              *      item_alias_id     int     foreign key
              *      source_id         int     foreign key
+             *      task_subtask_rel  int     foreign key
+             *      subtask_item_rel  int     foreign key
              *      date              int
              *      year              int
              *      month             int
@@ -154,6 +156,16 @@ namespace Repository
              *      time              int
              *      
              *  ext)
+             *  
+             *  taskキーとsubtaskキーとitemキーの関連テーブル
+             *  task_subtask_item_rel
+             *      task_sub_item_rel_id   int     PRIMARY
+             *      task_id                int     foreign key
+             *      task_alias_id          int     foreign key
+             *      subtask_id             int     foreign key
+             *      subtask_alias_id       int     foreign key
+             *      item_id                int     foreign key
+             *      item_alias_id          int     foreign key
              *  
              *  taskキーとsubtaskキーの関連テーブル
              *  task_subtask_rel
@@ -181,6 +193,7 @@ namespace Repository
             querys.AddLast(@"CREATE TABLE subtask_aliases(subtask_alias_id INTEGER PRIMARY KEY, subtask_alias_name TEXT UNIQUE);");
             querys.AddLast(@"CREATE TABLE items(item_id INTEGER PRIMARY KEY, item_name TEXT UNIQUE);");
             querys.AddLast(@"CREATE TABLE item_aliases(item_alias_id INTEGER PRIMARY KEY, item_alias_name TEXT UNIQUE);");
+            querys.AddLast(@"CREATE TABLE task_subtask_item_rel(task_sub_item_rel_id INTEGER PRIMARY KEY, task_id INTEGER, task_alias_id INTEGER, subtask_id INTEGER, subtask_alias_id INTEGER, item_id INTEGER, item_alias_id INTEGER, UNIQUE(task_id, task_alias_id, subtask_id, subtask_alias_id, item_id, item_alias_id));");
             querys.AddLast(@"CREATE TABLE task_subtask_rel(task_sub_rel_id INTEGER PRIMARY KEY, task_id INTEGER, task_alias_id INTEGER, subtask_id INTEGER, subtask_alias_id INTEGER, UNIQUE(task_id, task_alias_id, subtask_id, subtask_alias_id));");
             querys.AddLast(@"CREATE TABLE subtask_item_rel(sub_item_rel_id INTEGER PRIMARY KEY, subtask_id INTEGER, subtask_alias_id INTEGER, item_id INTEGER, item_alias_id INTEGER, UNIQUE(subtask_id, subtask_alias_id, item_id, item_alias_id));");
             // source_infosテーブル作成
@@ -218,6 +231,12 @@ namespace Repository
             q.Append(@", ");
             q.Append(@"item_alias_id INTEGER");
             q.Append(@", ");
+            q.Append(@"task_sub_item_rel_id INTEGER");
+            q.Append(@", ");
+            q.Append(@"task_sub_rel_id INTEGER");
+            q.Append(@", ");
+            q.Append(@"sub_item_rel_id INTEGER");
+            q.Append(@", ");
             q.Append(@"source_id INTEGER");
             q.Append(@", ");
             q.Append(@"date INTEGER");
@@ -243,6 +262,12 @@ namespace Repository
             q.Append(@"FOREIGN KEY(item_id) REFERENCES items(item_id)");
             q.Append(@", ");
             q.Append(@"FOREIGN KEY(item_alias_id) REFERENCES item_aliases(item_alias_id)");
+            q.Append(@", ");
+            q.Append(@"FOREIGN KEY(task_sub_item_rel_id) REFERENCES task_subtask_item_rel(task_sub_item_rel_id)");
+            q.Append(@", ");
+            q.Append(@"FOREIGN KEY(task_sub_rel_id) REFERENCES task_subtask_rel(task_sub_rel_id)");
+            q.Append(@", ");
+            q.Append(@"FOREIGN KEY(sub_item_rel_id) REFERENCES subtask_item_rel(sub_item_rel_id)");
             q.Append(@", ");
             q.Append(@"FOREIGN KEY(source_id) REFERENCES source_infos(source_id)");
             q.Append(@");");
@@ -426,6 +451,12 @@ namespace Repository
                     {
                         itemAliasId = await QuerySetItemAliases(trans, item);
                     }
+                    // task_subtask_item_rel登録
+                    var taskSubtaskItemRelId = await QueryCheckTaskSubtaskItemRel(trans, taskId, aliasId, subtaskId, subtaskAliasId, itemId, itemAliasId);
+                    if (taskSubtaskItemRelId == -1)
+                    {
+                        taskSubtaskItemRelId = await QuerySetTaskSubtaskItemRel(trans, taskId, aliasId, subtaskId, subtaskAliasId, itemId, itemAliasId);
+                    }
                     // task_subtask_rel登録
                     var taskSubtaskRelId = await QueryCheckTaskSubtaskRel(trans, taskId, aliasId, subtaskId, subtaskAliasId);
                     if (taskSubtaskRelId == -1)
@@ -440,7 +471,7 @@ namespace Repository
                     }
                     // WorkTimeは、WorkTimeがゼロでないときだけ登録する
                     // work_time登録
-                    var work_time_id = await QuerySetWorkTime(trans, item, log, personId, taskId, aliasId, subtaskId, subtaskAliasId, itemId, itemAliasId, sourceId);
+                    var work_time_id = await QuerySetWorkTime(trans, item, log, personId, taskId, aliasId, subtaskId, subtaskAliasId, itemId, itemAliasId, sourceId, taskSubtaskItemRelId, taskSubtaskRelId, subtaskItemRelId);
                 }
                 return true;
             }
@@ -946,6 +977,59 @@ namespace Repository
             }
         }
 
+        private async Task<int> QueryCheckTaskSubtaskItemRel(SqliteTransaction trans, int task_id, int task_alias_id, int subtask_id, int subtask_alias_id, int item_id, int item_alias_id)
+        {
+            try
+            {
+                // クエリ作成
+                var query = new StringBuilder();
+                query.Append($@"SELECT task_sub_item_rel_id FROM task_subtask_item_rel");
+                query.Append($@" WHERE task_id = '{task_id}' AND task_alias_id = '{task_alias_id}' AND subtask_id = '{subtask_id}' AND subtask_alias_id = '{subtask_alias_id}' AND item_id = '{item_id}' AND item_alias_id = '{item_alias_id}'");
+                query.Append(@";");
+                LastQuery = query.ToString();
+                // クエリ実行
+                // 登録チェック
+                using (var command = conn.CreateCommand())
+                {
+                    command.CommandText = LastQuery;
+                    if (trans != null) command.Transaction = trans;
+                    var id = await command.ExecuteScalarAsync();
+                    if (id != null) return (int)(long)(id);
+                    else return -1;
+                }
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
+        private async Task<int> QuerySetTaskSubtaskItemRel(SqliteTransaction trans, int task_id, int task_alias_id, int subtask_id, int subtask_alias_id, int item_id, int item_alias_id)
+        {
+            try
+            {
+                // クエリ作成
+                var query = new StringBuilder();
+                query.Append($@"INSERT INTO task_subtask_item_rel (task_id, task_alias_id, subtask_id, subtask_alias_id, item_id, item_alias_id)");
+                query.Append($@" VALUES ('{task_id}', '{task_alias_id}', '{subtask_id}', '{subtask_alias_id}', '{item_id}', '{item_alias_id}')");
+                query.Append(@";");
+                LastQuery = query.ToString();
+                // クエリ実行
+                using (var command = conn.CreateCommand())
+                {
+                    command.Transaction = trans;
+                    command.CommandText = LastQuery;
+                    command.ExecuteNonQuery();
+                    // last_insert_rowid() がidになってるはず
+                    return await GetLastInsertRowId(trans);
+                }
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
         private async Task<int> QueryCheckTaskSubtaskRel(SqliteTransaction trans, int task_id, int task_alias_id, int subtask_id, int subtask_alias_id)
         {
             try
@@ -1052,7 +1136,7 @@ namespace Repository
             }
         }
 
-        private async Task<int> QuerySetWorkTime(SqliteTransaction trans, LogType item, LogReader log, int person_id, int task_id, int task_alias_id, int subtask_id, int subtask_alias_id, int item_id, int item_alias_id, int source_id)
+        private async Task<int> QuerySetWorkTime(SqliteTransaction trans, LogType item, LogReader log, int person_id, int task_id, int task_alias_id, int subtask_id, int subtask_alias_id, int item_id, int item_alias_id, int source_id, int taskSubtaskItemRelId, int taskSubtaskRelId, int subtaskItemRelId)
         {
             try
             {
@@ -1063,8 +1147,8 @@ namespace Repository
                 var day = log.FileDateTime.Day;
                 // クエリ作成
                 var query = new StringBuilder();
-                query.Append($@"INSERT INTO work_times (person_id, task_id, task_alias_id, subtask_id, subtask_alias_id, item_id, item_alias_id, source_id, date, year, month, day, time)");
-                query.Append($@" VALUES ('{person_id}', '{task_id}', '{task_alias_id}', '{subtask_id}', '{subtask_alias_id}', '{item_id}', '{item_alias_id}', '{source_id}', '{date}', '{year}', '{month}', '{day}', '{item.Time}')");
+                query.Append($@"INSERT INTO work_times (person_id, task_id, task_alias_id, subtask_id, subtask_alias_id, item_id, item_alias_id, task_sub_item_rel_id, task_sub_rel_id, sub_item_rel_id, source_id, date, year, month, day, time)");
+                query.Append($@" VALUES ('{person_id}', '{task_id}', '{task_alias_id}', '{subtask_id}', '{subtask_alias_id}', '{item_id}', '{item_alias_id}', '{taskSubtaskItemRelId}', '{taskSubtaskRelId}', '{subtaskItemRelId}', '{source_id}', '{date}', '{year}', '{month}', '{day}', '{item.Time}')");
                 query.Append(@";");
                 LastQuery = query.ToString();
                 // クエリ実行
