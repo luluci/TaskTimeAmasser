@@ -535,6 +535,7 @@ namespace TaskTimeAmasser
                 TaskCode = FilterTaskCodeSelectItem.Value,
                 TaskName = FilterTaskName.Value,
                 TaskAlias = FilterTaskAlias.Value,
+                ExcludeTaskCode = config.QueryExcludeTaskCode.Value,
             };
             filter.Init();
             // クエリ作成
@@ -613,6 +614,7 @@ namespace TaskTimeAmasser
                 TaskCode = FilterTaskCodeSelectItem.Value,
                 TaskName = FilterTaskName.Value,
                 TaskAlias = FilterTaskAlias.Value,
+                ExcludeTaskCode = config.QueryExcludeTaskCode.Value,
             };
             filter.Init();
             // ダミー期間定義
@@ -627,6 +629,7 @@ namespace TaskTimeAmasser
                 TaskCode = FilterTaskCodeSelectItem.Value,
                 TaskName = FilterTaskName.Value,
                 TaskAlias = FilterTaskAlias.Value,
+                ExcludeTaskCode = config.QueryExcludeTaskCode.Value,
             };
             filter.Init();
             var term = new QueryFilterTerm
@@ -682,9 +685,14 @@ namespace TaskTimeAmasser
             {
                 var and = "";
                 query.AppendLine(@"WHERE");
+                if (filter.EnableExcludeTaskCode)
+                {
+                    query.AppendLine($@"  NOT time_tbl.task_code GLOB '{filter.ExcludeTaskCode}'");
+                    and = "AND ";
+                }
                 if (filter.EnableTaskCode)
                 {
-                    query.AppendLine($@"  time_tbl.task_code GLOB '{filter.TaskCode}'");
+                    query.AppendLine($@"  {and}time_tbl.task_code GLOB '{filter.TaskCode}'");
                     and = "AND ";
                 }
                 if (filter.EnableTaskName)
@@ -698,7 +706,6 @@ namespace TaskTimeAmasser
                     and = "AND ";
                 }
             }
-            //query.AppendLine(@"  AND NOT time_tbl.subtask_code IN ('CodeX', 'CodeY')");
             // GROUP BY: グループ定義
             query.AppendLine(@"GROUP BY");
             // エイリアス＞タスク名＞タスクコード　の順でGroup化する
@@ -752,6 +759,7 @@ namespace TaskTimeAmasser
                 TaskCode = FilterTaskCodeSelectItem.Value,
                 TaskName = FilterTaskName.Value,
                 TaskAlias = FilterTaskAlias.Value,
+                ExcludeTaskCode = config.QueryExcludeTaskCode.Value,
             };
             filter.Init();
             // ダミー期間定義
@@ -766,6 +774,7 @@ namespace TaskTimeAmasser
                 TaskCode = FilterTaskCodeSelectItem.Value,
                 TaskName = FilterTaskName.Value,
                 TaskAlias = FilterTaskAlias.Value,
+                ExcludeTaskCode = config.QueryExcludeTaskCode.Value,
             };
             filter.Init();
             var term = new QueryFilterTerm
@@ -823,14 +832,18 @@ namespace TaskTimeAmasser
             }
             query.AppendLine(@"  ) AS time_tbl");
             // WHERE: 条件設定
-            query.AppendLine(@"WHERE");
-            //query.AppendLine(@"  NOT time_tbl.subtask_code IN ('CodeA', 'CodeD')");
             if (filter.IsActive)
             {
+                query.AppendLine(@"WHERE");
                 var and = "";
+                if (filter.EnableExcludeTaskCode)
+                {
+                    query.AppendLine($@"  NOT time_tbl.task_code GLOB '{filter.ExcludeTaskCode}'");
+                    and = "AND ";
+                }
                 if (filter.EnableTaskCode)
                 {
-                    query.AppendLine($@"  time_tbl.task_code GLOB '{filter.TaskCode}'");
+                    query.AppendLine($@"  {and}time_tbl.task_code GLOB '{filter.TaskCode}'");
                     and = "AND ";
                 }
                 if (filter.EnableTaskName)
@@ -889,6 +902,7 @@ namespace TaskTimeAmasser
                 TaskCode = FilterTaskCodeSelectItem.Value,
                 TaskName = FilterTaskName.Value,
                 TaskAlias = FilterTaskAlias.Value,
+                ExcludeTaskCode = config.QueryExcludeTaskCode.Value,
             };
             filter.Init();
             var term = new QueryFilterTerm
@@ -940,15 +954,19 @@ namespace TaskTimeAmasser
             {
                 query.AppendLine(@"  NATURAL LEFT OUTER JOIN task_aliases");
             }
-            query.AppendLine(@"");
             // WHERE: 条件設定
             if (filter.IsActive)
             {
                 var and = "";
                 query.AppendLine(@"WHERE");
+                if (filter.EnableExcludeTaskCode)
+                {
+                    query.AppendLine($@"  NOT task_code GLOB '{filter.ExcludeTaskCode}'");
+                    and = "AND ";
+                }
                 if (filter.EnableTaskCode)
                 {
-                    query.AppendLine($@"  task_code GLOB '{filter.TaskCode}'");
+                    query.AppendLine($@"  {and}task_code GLOB '{filter.TaskCode}'");
                     and = "AND ";
                 }
                 if (filter.EnableTaskName)
@@ -962,7 +980,6 @@ namespace TaskTimeAmasser
                     and = "AND ";
                 }
             }
-            //query.AppendLine(@"  AND NOT time_tbl.subtask_code IN ('CodeX', 'CodeY')");
             // GROUP BY: グループ定義
             query.AppendLine(@"GROUP BY");
             // エイリアス＞タスク名＞タスクコード　の順でGroup化する
@@ -1113,12 +1130,14 @@ namespace TaskTimeAmasser
         public string TaskCode { get; set; } = string.Empty;
         public string TaskName { get; set; } = string.Empty;
         public string TaskAlias { get; set; } = string.Empty;
+        public string ExcludeTaskCode { get; set; } = string.Empty;
 
         public bool IsActive { get; set; } = false;
         public bool EnableTasks { get; set; } = false;
         public bool EnableTaskCode { get; set; } = false;
         public bool EnableTaskName { get; set; } = false;
         public bool EnableTaskAlias { get; set; } = false;
+        public bool EnableExcludeTaskCode { get; set; } = false;
 
         public QueryFilterTask() { }
 
@@ -1128,7 +1147,10 @@ namespace TaskTimeAmasser
             EnableTaskName = TaskName.Length != 0;
             EnableTaskAlias = TaskAlias.Length != 0;
             EnableTasks = (EnableTaskCode || EnableTaskName);
-            IsActive = (EnableTaskCode || EnableTaskName || EnableTaskAlias);
+            //
+            EnableExcludeTaskCode = ExcludeTaskCode.Length != 0;
+            //
+            IsActive = (EnableTaskCode || EnableTaskName || EnableTaskAlias || EnableExcludeTaskCode);
         }
 
     }

@@ -24,6 +24,7 @@ namespace Config
 
         ReactivePropertySlim<string> DBFilePath { get; set; }
         ReactivePropertySlim<string> LogDirPath { get; set; }
+        ReactivePropertySlim<string> QueryExcludeTaskCode { get; set; }
     }
 
     public class Config : IConfig
@@ -64,10 +65,22 @@ namespace Config
                 }
             })
             .AddTo(disposables);
+            //
+            QueryExcludeTaskCode = new ReactivePropertySlim<string>("");
+            QueryExcludeTaskCode.Subscribe(x =>
+            {
+                if (json != null)
+                {
+                    json.QueryExcludeTaskCode = x;
+                    PropertyChanged = true;
+                }
+            })
+            .AddTo(disposables);
         }
 
         public ReactivePropertySlim<string> DBFilePath { get; set; }
         public ReactivePropertySlim<string> LogDirPath { get; set; }
+        public ReactivePropertySlim<string> QueryExcludeTaskCode { get; set; }
 
         public void Load()
         {
@@ -108,12 +121,14 @@ namespace Config
                 json = new JsonItem
                 {
                     DBFilePath = dbDefaultPath,
-                    LogDirPath = "",
+                    LogDirPath = string.Empty,
+                    QueryExcludeTaskCode = string.Empty,
                 };
             }
             // property更新
             DBFilePath.Value = json.DBFilePath;
             LogDirPath.Value = json.LogDirPath;
+            QueryExcludeTaskCode.Value = json.QueryExcludeTaskCode;
         }
 
         public void Save()
@@ -177,5 +192,8 @@ namespace Config
 
         [JsonPropertyName("log_dir_path")]
         public string LogDirPath { get; set; }
+
+        [JsonPropertyName("query_exclude_task_code")]
+        public string QueryExcludeTaskCode { get; set; }
     }
 }
