@@ -10,6 +10,8 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Markup;
+using System.Windows.Resources;
 using MaterialDesignThemes.Wpf;
 using Prism.Commands;
 using Prism.Ioc;
@@ -75,6 +77,7 @@ namespace TaskTimeAmasser
         // ダイアログ操作
         public ReactivePropertySlim<string> DialogMessage { get; set; }
 
+        private QueryResultResource queryResultResource;
         private Config.IConfig config;
         private Repository.IRepository repository;
 
@@ -85,7 +88,23 @@ namespace TaskTimeAmasser
             this.config = config;
             this.repository = repo;
 
-            
+            // ResourceDictionary
+            {
+                ResourceDictionary dic = new ResourceDictionary
+                {
+                    Source = new Uri("/TaskTimeAmasser;component/Resources/GUIDictionary.xaml", UriKind.Relative)
+                };
+                queryResultResource = new QueryResultResource
+                {
+                    TaskCode = dic["GuiDispQueryResultTaskCode"].ToString(),
+                    TaskName = dic["GuiDispQueryResultTaskName"].ToString(),
+                    TaskAlias = dic["GuiDispQueryResultTaskAlias"].ToString(),
+                    SubTaskCode = dic["GuiDispQueryResultSubTaskCode"].ToString(),
+                    ItemName = dic["GuiDispQueryResultItemName"].ToString(),
+                    Person = dic["GuiDispQueryResultPerson"].ToString(),
+                };
+            }
+
             // Configロード
             config.Load();
             config.AddTo(Disposables);
@@ -526,7 +545,10 @@ namespace TaskTimeAmasser
         {
             // クエリ作成
             var query = new StringBuilder();
-            query.AppendLine(@"SELECT DISTINCT t.task_code AS コード, t.task_name AS タスク名, a.task_alias_name AS タスクエイリアス");
+            query.AppendLine(@"SELECT DISTINCT");
+            query.AppendLine($@"  t.task_code AS '{queryResultResource.TaskCode}',");
+            query.AppendLine($@"  t.task_name AS '{queryResultResource.TaskName}',");
+            query.AppendLine($@"  a.task_alias_name AS '{queryResultResource.TaskAlias}'");
             query.AppendLine(@"  FROM work_times w, tasks t, task_aliases a");
             query.AppendLine(@"  WHERE w.task_id = t.task_id AND w.task_alias_id = a.task_alias_id");
             query.Append(@";");
@@ -655,15 +677,15 @@ namespace TaskTimeAmasser
             // フィルタをかけるときはタスク情報も表示する
             if (filter.IsActive)
             {
-                query.AppendLine(@"  time_tbl.task_code AS 'タスクコード',");
-                query.AppendLine(@"  time_tbl.task_name AS 'タスク名',");
+                query.AppendLine($@"  time_tbl.task_code AS '{queryResultResource.TaskCode}',");
+                query.AppendLine($@"  time_tbl.task_name AS '{queryResultResource.TaskName}',");
             }
             if (filter.EnableTaskAlias)
             {
-                query.AppendLine(@"  time_tbl.task_alias_name AS 'タスクエイリアス',");
+                query.AppendLine($@"  time_tbl.task_alias_name AS '{queryResultResource.TaskAlias}',");
             }
             // サブタスクコードカラム表示
-            query.AppendLine(@"  time_tbl.subtask_code AS 'コード',");
+            query.AppendLine($@"  time_tbl.subtask_code AS '{queryResultResource.SubTaskCode}',");
             // 期間集計指定ありのときはカラム定義を追加する
             if (term.IsActive)
             {
@@ -800,16 +822,16 @@ namespace TaskTimeAmasser
             // フィルタをかけるときはタスク情報も表示する
             if (filter.IsActive)
             {
-                query.AppendLine(@"  time_tbl.task_code AS 'タスクコード',");
-                query.AppendLine(@"  time_tbl.task_name AS 'タスク名',");
+                query.AppendLine($@"  time_tbl.task_code AS '{queryResultResource.TaskCode}',");
+                query.AppendLine($@"  time_tbl.task_name AS '{queryResultResource.TaskName}',");
             }
             if (filter.EnableTaskAlias)
             {
-                query.AppendLine(@"  time_tbl.task_alias_name AS 'タスクエイリアス',");
+                query.AppendLine($@"  time_tbl.task_alias_name AS '{queryResultResource.TaskAlias}',");
             }
             // サブタスクコードカラム表示
-            query.AppendLine(@"  time_tbl.subtask_code AS 'コード',");
-            query.AppendLine(@"  time_tbl.item_name AS 'アイテム',");
+            query.AppendLine($@"  time_tbl.subtask_code AS '{queryResultResource.SubTaskCode}',");
+            query.AppendLine($@"  time_tbl.item_name AS '{queryResultResource.ItemName}',");
             // 期間集計指定ありのときはカラム定義を追加する
             if (term.IsActive)
             {
@@ -925,16 +947,16 @@ namespace TaskTimeAmasser
             // クエリ作成
             var query = new StringBuilder();
             query.AppendLine(@"SELECT");
-            query.AppendLine(@"  person_name AS '名前',");
+            query.AppendLine($@"  person_name AS '{queryResultResource.Person}',");
             // フィルタをかけるときはタスク情報も表示する
             if (filter.IsActive)
             {
-                query.AppendLine(@"  task_code AS 'タスクコード',");
-                query.AppendLine(@"  task_name AS 'タスク名',");
+                query.AppendLine($@"  task_code AS '{queryResultResource.TaskCode}',");
+                query.AppendLine($@"  task_name AS '{queryResultResource.TaskName}',");
             }
             if (filter.EnableTaskAlias)
             {
-                query.AppendLine(@"  task_alias_name AS 'タスクエイリアス',");
+                query.AppendLine($@"  task_alias_name AS '{queryResultResource.TaskAlias}',");
             }
             // ログ数情報
             // 基本的に期間指定ありき
@@ -1130,6 +1152,16 @@ namespace TaskTimeAmasser
         }
     }
 
+    class QueryResultResource
+    {
+        public string TaskCode { get; set; } = string.Empty;
+        public string TaskName { get; set; } = string.Empty;
+        public string TaskAlias { get; set; } = string.Empty;
+        public string SubTaskCode { get; set; } = string.Empty;
+        public string ItemName { get; set; } = string.Empty;
+        public string Person { get; set; } = string.Empty;
+    }
+    
     class QueryFilterTask
     {
         public string TaskCode { get; set; } = string.Empty;
