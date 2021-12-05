@@ -543,14 +543,53 @@ namespace TaskTimeAmasser
 
         private string MakeQuerySelectTaskList()
         {
+            // フィルタ作成
+            var filter = new QueryFilterTask
+            {
+                TaskCode = FilterTaskCodeSelectItem.Value,
+                TaskName = FilterTaskName.Value,
+                TaskAlias = FilterTaskAlias.Value,
+                ExcludeTaskCode = config.QueryExcludeTaskCode.Value,
+            };
+            filter.Init();
             // クエリ作成
             var query = new StringBuilder();
             query.AppendLine(@"SELECT DISTINCT");
-            query.AppendLine($@"  t.task_code AS '{queryResultResource.TaskCode}',");
-            query.AppendLine($@"  t.task_name AS '{queryResultResource.TaskName}',");
-            query.AppendLine($@"  a.task_alias_name AS '{queryResultResource.TaskAlias}'");
-            query.AppendLine(@"  FROM work_times w, tasks t, task_aliases a");
-            query.AppendLine(@"  WHERE w.task_id = t.task_id AND w.task_alias_id = a.task_alias_id");
+            query.AppendLine($@"  task_code AS '{queryResultResource.TaskCode}',");
+            query.AppendLine($@"  task_name AS '{queryResultResource.TaskName}',");
+            query.AppendLine($@"  task_alias_name AS '{queryResultResource.TaskAlias}'");
+            query.AppendLine(@"FROM work_times");
+            query.AppendLine(@"  NATURAL LEFT OUTER JOIN tasks");
+            query.AppendLine(@"  NATURAL LEFT OUTER JOIN task_aliases");
+            // WHERE: 条件設定
+            if (filter.IsActive || filter.EnableExcludeTaskCode)
+            {
+                var and = "";
+                query.AppendLine(@"WHERE");
+                if (filter.EnableExcludeTaskCode)
+                {
+                    query.AppendLine($@"  NOT task_code GLOB '{filter.ExcludeTaskCode}'");
+                    and = "AND ";
+                }
+                if (filter.EnableTaskCode)
+                {
+                    query.AppendLine($@"  {and}task_code GLOB '{filter.TaskCode}'");
+                    and = "AND ";
+                }
+                if (filter.EnableTaskName)
+                {
+                    query.AppendLine($@"  {and}task_name GLOB '{filter.TaskName}'");
+                    and = "AND ";
+                }
+                if (filter.EnableTaskAlias)
+                {
+                    query.AppendLine($@"  {and}task_alias_name GLOB '{filter.TaskAlias}'");
+                    and = "AND ";
+                }
+            }
+            // ORDER BY: ソート
+            query.AppendLine(@"ORDER BY");
+            query.AppendLine(@"  task_code, task_name, task_alias_name");
             query.Append(@";");
             return query.ToString();
         }
