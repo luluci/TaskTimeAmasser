@@ -1305,9 +1305,9 @@ namespace TaskTimeAmasser
         {
             // (Lo, Hi]の判定とする
             // Beginの日付(Beginの0時0分になってるはず)を初期境界値下限にセット
-            var boundCurr = Begin.Date;
+            var boundCurr = new DateTime(Begin.Year, Begin.Month, 1);
             // Endの日付まで含めるものとする
-            var boundEnd = End.Date;
+            var boundEnd = new DateTime(End.Year, End.Month, 1);
             // 日時の差分をバッファサイズとする
             var span = (boundEnd.Month - boundCurr.Month) + (12 * (boundEnd.Year - boundCurr.Year));
             Terms.Clear();
@@ -1325,9 +1325,9 @@ namespace TaskTimeAmasser
         {
             // (Lo, Hi]の判定とする
             // Beginの日付(Beginの0時0分になってるはず)を初期境界値下限にセット
-            var boundCurr = Begin.Date;
+            var boundCurr = new DateTime(Begin.Year, 1, 1);
             // Endの日付まで含めるものとする
-            var boundEnd = End.Date;
+            var boundEnd = new DateTime(End.Year, 1, 1);
             // 日時の差分をバッファサイズとする
             var span = boundEnd.Year - boundCurr.Year;
             Terms.Clear();
