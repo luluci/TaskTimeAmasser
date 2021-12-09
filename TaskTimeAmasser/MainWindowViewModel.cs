@@ -50,6 +50,7 @@ namespace TaskTimeAmasser
         public AsyncReactiveCommand QueryPresetGetTaskList { get; }
         public AsyncReactiveCommand QueryPresetGetSubTotal { get; }
         public AsyncReactiveCommand QueryPresetGetItemTotal { get; }
+        public AsyncReactiveCommand QueryPresetGetPersonTotal { get; }
         public ReactivePropertySlim<string> ExcludeTaskCode { get; set; }
         // 期間集計
         public ReactivePropertySlim<bool> ReflectFilterQueryResultDate { get; set; }
@@ -58,6 +59,7 @@ namespace TaskTimeAmasser
         public ReactivePropertySlim<int> FilterTermUnitSelectIndex { get; set; }
         public AsyncReactiveCommand QueryPresetGetSubTotalTerm { get; }
         public AsyncReactiveCommand QueryPresetGetItemTotalTerm { get; }
+        public AsyncReactiveCommand QueryPresetGetPersonTotalTerm { get; }
         public AsyncReactiveCommand QueryPresetGetPersonInfoTerm { get; }
         // Query Manual
         public ReactivePropertySlim<string> QueryText { get; set; }
@@ -359,6 +361,36 @@ namespace TaskTimeAmasser
                     });
                 })
                 .AddTo(Disposables);
+            QueryPresetGetPersonTotal = repository.IsConnect
+                .ToAsyncReactiveCommand()
+                .WithSubscribe(async () =>
+                {
+                    DialogMessage.Value = "Query Executing ...";
+                    var result = await DialogHost.Show(this.dialog, async delegate (object sender, DialogOpenedEventArgs args)
+                    {
+                        var r = await Task.Run(async () =>
+                        {
+                            var q = MakeQuerySelectPersonTotal();
+                            var qr = await ExecuteQuery(q);
+                            if (qr)
+                            {
+                                // レコード内日時範囲反映設定が有効であれば更新する
+                                if (ReflectFilterQueryResultDate.Value)
+                                {
+                                    var dateResult = await repository.UpdateDateRange(MakeQuerySelectDateRange());
+                                    if (dateResult)
+                                    {
+                                        UpdateQueryDateRange();
+                                    }
+                                }
+                            }
+                            return qr;
+                        });
+                        UpdateDbView(r, QueryResultMode.Other);
+                        args.Session.Close(false);
+                    });
+                })
+                .AddTo(Disposables);
             ReflectFilterQueryResultDate = new ReactivePropertySlim<bool>(true);
             ReflectFilterQueryResultDate
                 .AddTo(Disposables);
@@ -398,6 +430,23 @@ namespace TaskTimeAmasser
                         var r = await Task.Run(async () =>
                         {
                             var q = MakeQuerySelectItemTotalTerm();
+                            return await ExecuteQuery(q);
+                        });
+                        UpdateDbView(r, QueryResultMode.Other);
+                        args.Session.Close(false);
+                    });
+                })
+                .AddTo(Disposables);
+            QueryPresetGetPersonTotalTerm = repository.IsConnect
+                .ToAsyncReactiveCommand()
+                .WithSubscribe(async () =>
+                {
+                    DialogMessage.Value = "Query Executing ...";
+                    var result = await DialogHost.Show(this.dialog, async delegate (object sender, DialogOpenedEventArgs args)
+                    {
+                        var r = await Task.Run(async () =>
+                        {
+                            var q = MakeQuerySelectPersonTotalTerm();
                             return await ExecuteQuery(q);
                         });
                         UpdateDbView(r, QueryResultMode.Other);
@@ -1078,6 +1127,140 @@ namespace TaskTimeAmasser
             }
             */
             query.AppendLine(@"  person_id");
+            query.Append(@";");
+            return query.ToString();
+        }
+
+        private string MakeQuerySelectPersonTotal()
+        {
+            // フィルタオブジェクト作成
+            var filter = new QueryFilterTask
+            {
+                TaskCode = FilterTaskCodeSelectItem.Value,
+                TaskName = FilterTaskName.Value,
+                TaskAlias = FilterTaskAlias.Value,
+                ExcludeTaskCode = config.QueryExcludeTaskCode.Value,
+            };
+            filter.Init();
+            // ダミー期間定義
+            var term = new QueryFilterTerm();
+            return MakeQuerySelectPersonTotalImpl(filter, term);
+        }
+
+        private string MakeQuerySelectPersonTotalTerm()
+        {
+            var filter = new QueryFilterTask
+            {
+                TaskCode = FilterTaskCodeSelectItem.Value,
+                TaskName = FilterTaskName.Value,
+                TaskAlias = FilterTaskAlias.Value,
+                ExcludeTaskCode = config.QueryExcludeTaskCode.Value,
+            };
+            filter.Init();
+            var term = new QueryFilterTerm
+            {
+                Begin = FilterTermBegin.Value,
+                End = FilterTermEnd.Value,
+                Unit = FilterTermUnitSelectIndex.Value
+            };
+            term.Init();
+            return MakeQuerySelectPersonTotalImpl(filter, term);
+        }
+
+        private string MakeQuerySelectPersonTotalImpl(QueryFilterTask filter, QueryFilterTerm term)
+        {
+            // クエリ作成
+            var query = new StringBuilder();
+            query.AppendLine(@"SELECT");
+            // フィルタをかけるときはタスク情報も表示する
+            if (filter.IsActive)
+            {
+                query.AppendLine($@"  time_tbl.task_code AS '{queryResultResource.TaskCode}',");
+                query.AppendLine($@"  time_tbl.task_name AS '{queryResultResource.TaskName}',");
+            }
+            if (filter.EnableTaskAlias)
+            {
+                query.AppendLine($@"  time_tbl.task_alias_name AS '{queryResultResource.TaskAlias}',");
+            }
+            // サブタスクコードカラム表示
+            query.AppendLine($@"  time_tbl.person_name AS '{queryResultResource.Person}',");
+            // 期間集計指定ありのときはカラム定義を追加する
+            if (term.IsActive)
+            {
+                // 高速化のためにStringBuilderを渡して追加する
+                MakeQuerySelectSubTotalImpl_InsertTermColumns(query, term);
+            }
+            query.AppendLine(@"  Sum(CASE WHEN time_tbl.time IS NULL THEN 0 ELSE time_tbl.time END) AS '工数(合計)'");
+            query.AppendLine(@"FROM (");
+            query.AppendLine(@"  (");
+            query.AppendLine(@"   persons");
+            if (filter.IsActive || filter.EnableExcludeTaskCode)
+            {
+                query.AppendLine(@"   LEFT OUTER JOIN tasks");
+            }
+            if (filter.EnableTaskAlias)
+            {
+                query.AppendLine(@"   LEFT OUTER JOIN task_aliases");
+            }
+            query.AppendLine(@"  )");
+            query.AppendLine(@"  NATURAL LEFT OUTER JOIN work_times");
+            query.AppendLine(@") AS time_tbl");
+            // WHERE: 条件設定
+            if (filter.IsActive || filter.EnableExcludeTaskCode)
+            {
+                var and = "";
+                query.AppendLine(@"WHERE");
+                if (filter.EnableExcludeTaskCode)
+                {
+                    query.AppendLine($@"  NOT time_tbl.task_code GLOB '{filter.ExcludeTaskCode}'");
+                    and = "AND ";
+                }
+                if (filter.EnableTaskCode)
+                {
+                    query.AppendLine($@"  {and}time_tbl.task_code GLOB '{filter.TaskCode}'");
+                    and = "AND ";
+                }
+                if (filter.EnableTaskName)
+                {
+                    query.AppendLine($@"  {and}time_tbl.task_name GLOB '{filter.TaskName}'");
+                    and = "AND ";
+                }
+                if (filter.EnableTaskAlias)
+                {
+                    query.AppendLine($@"  {and}time_tbl.task_alias_name GLOB '{filter.TaskAlias}'");
+                    and = "AND ";
+                }
+            }
+            // GROUP BY: グループ定義
+            query.AppendLine(@"GROUP BY");
+            // エイリアス＞タスク名＞タスクコード　の順でGroup化する
+            if (filter.EnableTaskAlias)
+            {
+                query.AppendLine(@"  time_tbl.task_alias_name,");
+            }
+            else if (filter.EnableTaskName)
+            {
+                query.AppendLine(@"  time_tbl.task_name,");
+            }
+            else if (filter.EnableTaskCode)
+            {
+                query.AppendLine(@"  time_tbl.task_code,");
+            }
+            query.AppendLine(@"  time_tbl.person_name");
+            query.AppendLine(@"ORDER BY");
+            if (filter.EnableTaskAlias)
+            {
+                query.AppendLine(@"  time_tbl.task_alias_name,");
+            }
+            else if (filter.EnableTaskName)
+            {
+                query.AppendLine(@"  time_tbl.task_name,");
+            }
+            else if (filter.EnableTaskCode)
+            {
+                query.AppendLine(@"  time_tbl.task_code,");
+            }
+            query.AppendLine(@"  time_tbl.person_id");
             query.Append(@";");
             return query.ToString();
         }
