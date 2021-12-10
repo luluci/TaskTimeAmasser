@@ -599,6 +599,7 @@ namespace TaskTimeAmasser
                 TaskName = FilterTaskName.Value,
                 TaskAlias = FilterTaskAlias.Value,
                 ExcludeTaskCode = config.QueryExcludeTaskCode.Value,
+                //ExcludeSubTaskCode = new List<string> { "CodeB", "CodeF" },
             };
             filter.Init();
             return filter;
@@ -772,7 +773,10 @@ namespace TaskTimeAmasser
                 // 高速化のためにStringBuilderを渡して追加する
                 MakeQuerySelectSubTotalImpl_InsertTermColumns(query, term);
             }
-            query.AppendLine(@"  Sum(CASE WHEN time_tbl.time IS NULL THEN 0 ELSE time_tbl.time END) AS '工数(合計)'");
+            else
+            {
+                query.AppendLine(@"  Sum(CASE WHEN time_tbl.time IS NULL THEN 0 ELSE time_tbl.time END) AS '工数(合計)'");
+            }
             query.AppendLine(@"FROM (");
             query.AppendLine(@"  (");
             query.AppendLine(@"   subtasks");
@@ -796,7 +800,7 @@ namespace TaskTimeAmasser
                 {
                     foreach (var subcode in filter.ExcludeSubTaskCode)
                     {
-                        query.AppendLine($@"  {and}NOT time_tbl.subtask_code GLOB '{filter.SubTaskCode}'");
+                        query.AppendLine($@"  {and}NOT time_tbl.subtask_code GLOB '{subcode}'");
                         and = "AND ";
                     }
                 }
@@ -863,11 +867,16 @@ namespace TaskTimeAmasser
         private void MakeQuerySelectSubTotalImpl_InsertTermColumns(StringBuilder query, QueryFilterTerm term)
         {
             // カラム作成
+            // 指定期間
             for (int i = 0; i < term.Terms.Count; i++)
             {
                 var thre = term.Terms[i];
                 query.AppendLine($@"  Sum(CASE WHEN time_tbl.time IS NULL THEN 0 WHEN {thre.boundLo} <= time_tbl.date AND time_tbl.date < {thre.boundHi} THEN time_tbl.time ELSE 0 END) AS '工数({thre.date})',");
             }
+            // 期間全体
+            var boundLo = term.Terms.First().boundLo;
+            var boundHi = term.Terms.Last().boundHi;
+            query.AppendLine($@"  Sum(CASE WHEN time_tbl.time IS NULL THEN 0 WHEN {boundLo} <= time_tbl.date AND time_tbl.date < {boundHi} THEN time_tbl.time ELSE 0 END) AS '工数(合計)'");
         }
         
 
@@ -911,7 +920,10 @@ namespace TaskTimeAmasser
                 // 高速化のためにStringBuilderを渡して追加する
                 MakeQuerySelectSubTotalImpl_InsertTermColumns(query, term);
             }
-            query.AppendLine(@"  Sum(CASE WHEN time_tbl.time IS NULL THEN 0 ELSE time_tbl.time END) AS '工数(合計)'");
+            else
+            {
+                query.AppendLine(@"  Sum(CASE WHEN time_tbl.time IS NULL THEN 0 ELSE time_tbl.time END) AS '工数(合計)'");
+            }
             query.AppendLine(@"FROM (");
             query.AppendLine(@"  (");
             query.AppendLine(@"   SELECT task_id, task_alias_id, subtask_id, item_id, date, time FROM work_times");
@@ -940,7 +952,7 @@ namespace TaskTimeAmasser
                 {
                     foreach (var subcode in filter.ExcludeSubTaskCode)
                     {
-                        query.AppendLine($@"  {and}NOT time_tbl.subtask_code GLOB '{filter.SubTaskCode}'");
+                        query.AppendLine($@"  {and}NOT time_tbl.subtask_code GLOB '{subcode}'");
                         and = "AND ";
                     }
                 }
@@ -1046,6 +1058,10 @@ namespace TaskTimeAmasser
             query.AppendLine(@"FROM");
             query.AppendLine(@"  work_times");
             query.AppendLine(@"  NATURAL LEFT OUTER JOIN persons");
+            if (filter.EnableSubTasks)
+            {
+                query.AppendLine(@"  NATURAL LEFT OUTER JOIN subtasks");
+            }
             if (filter.EnableTasks)
             {
                 query.AppendLine(@"  NATURAL LEFT OUTER JOIN tasks");
@@ -1063,7 +1079,7 @@ namespace TaskTimeAmasser
                 {
                     foreach (var subcode in filter.ExcludeSubTaskCode)
                     {
-                        query.AppendLine($@"  {and}NOT subtask_code GLOB '{filter.SubTaskCode}'");
+                        query.AppendLine($@"  {and}NOT subtask_code GLOB '{subcode}'");
                         and = "AND ";
                     }
                 }
@@ -1168,10 +1184,17 @@ namespace TaskTimeAmasser
                 // 高速化のためにStringBuilderを渡して追加する
                 MakeQuerySelectSubTotalImpl_InsertTermColumns(query, term);
             }
-            query.AppendLine(@"  Sum(CASE WHEN time_tbl.time IS NULL THEN 0 ELSE time_tbl.time END) AS '工数(合計)'");
+            else
+            {
+                query.AppendLine(@"  Sum(CASE WHEN time_tbl.time IS NULL THEN 0 ELSE time_tbl.time END) AS '工数(合計)'");
+            }
             query.AppendLine(@"FROM (");
             query.AppendLine(@"  (");
             query.AppendLine(@"   persons");
+            if (filter.EnableSubTasks)
+            {
+                query.AppendLine(@"   LEFT OUTER JOIN subtasks");
+            }
             if (filter.EnableTasks)
             {
                 query.AppendLine(@"   LEFT OUTER JOIN tasks");
@@ -1192,7 +1215,7 @@ namespace TaskTimeAmasser
                 {
                     foreach (var subcode in filter.ExcludeSubTaskCode)
                     {
-                        query.AppendLine($@"  {and}NOT time_tbl.subtask_code GLOB '{filter.SubTaskCode}'");
+                        query.AppendLine($@"  {and}NOT time_tbl.subtask_code GLOB '{subcode}'");
                         and = "AND ";
                     }
                 }
