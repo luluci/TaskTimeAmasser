@@ -631,13 +631,13 @@ namespace TaskTimeAmasser
             query.AppendLine(@"  NATURAL LEFT OUTER JOIN tasks");
             query.AppendLine(@"  NATURAL LEFT OUTER JOIN task_aliases");
             // WHERE: 条件設定
-            if (filter.IsActive || filter.EnableExcludeTaskCode)
+            if (filter.EnableTasks)
             {
                 var and = "";
                 query.AppendLine(@"WHERE");
                 if (filter.EnableExcludeTaskCode)
                 {
-                    query.AppendLine($@"  NOT task_code GLOB '{filter.ExcludeTaskCode}'");
+                    query.AppendLine($@"  {and}NOT task_code GLOB '{filter.ExcludeTaskCode}'");
                     and = "AND ";
                 }
                 if (filter.EnableTaskCode)
@@ -667,7 +667,7 @@ namespace TaskTimeAmasser
         {
             var filter = MakeQueryFilterTask();
             // クエリ作成
-            if (!filter.IsActive)
+            if (!filter.EnableTasks)
             {
                 return "SELECT max(w.date) AS MAX, min(w.date) AS MIN FROM work_times w;";
             }
@@ -686,24 +686,22 @@ namespace TaskTimeAmasser
             query.AppendLine(@"   FROM");
             query.AppendLine(@"     work_times w");
             // タスクフィルターサブテーブル
-            if (filter.EnableTasks)
+            if (filter.EnableTaskCode || filter.EnableTaskName)
             {
+                var and = "";
                 // タスク名とタスクIDの両方をフィルターするか？
-                var partAnd = "";
-                if (filter.EnableTaskCode && filter.EnableTaskName)
-                {
-                    partAnd = " AND ";
-                }
                 query.AppendLine(@"     ,");
                 query.AppendLine($@"     (SELECT t.task_id AS task_id FROM tasks t");
                 query.AppendLine($@"      WHERE");
                 if (filter.EnableTaskName)
                 {
-                    query.AppendLine($@"        t.task_name GLOB '{filter.TaskName}' {partAnd}");
+                    query.AppendLine($@"        {and}t.task_name GLOB '{filter.TaskName}'");
+                    and = "AND ";
                 }
                 if (filter.EnableTaskCode)
                 {
-                    query.AppendLine($@"        t.task_code GLOB '{filter.TaskCode}'");
+                    query.AppendLine($@"        {and}t.task_code GLOB '{filter.TaskCode}'");
+                    and = "AND ";
                 }
                 query.AppendLine($@"     ) AS filter_task");
             }
@@ -713,19 +711,20 @@ namespace TaskTimeAmasser
                 query.AppendLine(@"     ,");
                 query.AppendLine($@"     (SELECT a.task_alias_id AS alias_id FROM task_aliases a WHERE a.task_alias_name GLOB '{filter.TaskAlias}') AS filter_alias");
             }
-            query.AppendLine(@"   WHERE");
-            if (filter.EnableTasks)
+            if (filter.EnableTaskCode || filter.EnableTaskName || filter.EnableTaskAlias)
             {
-                var partAnd = "";
+                var and = "";
+                query.AppendLine(@"   WHERE");
+                if (filter.EnableTaskCode || filter.EnableTaskName)
+                {
+                    query.AppendLine($@"     {and}w.task_id = filter_task.task_id");
+                    and = "AND ";
+                }
                 if (filter.EnableTaskAlias)
                 {
-                    partAnd = "AND";
+                    query.AppendLine($@"     {and}w.task_alias_id = filter_alias.alias_id");
+                    and = "AND ";
                 }
-                query.AppendLine($@"     w.task_id = filter_task.task_id {partAnd}");
-            }
-            if (filter.EnableTaskAlias)
-            {
-                query.AppendLine(@"     w.task_alias_id = filter_alias.alias_id");
             }
             query.AppendLine(@"  ) AS time_tbl");
             query.Append(@";");
@@ -756,7 +755,7 @@ namespace TaskTimeAmasser
             var query = new StringBuilder();
             query.AppendLine(@"SELECT");
             // フィルタをかけるときはタスク情報も表示する
-            if (filter.IsActive)
+            if (filter.EnableTasks)
             {
                 query.AppendLine($@"  time_tbl.task_code AS '{queryResultResource.TaskCode}',");
                 query.AppendLine($@"  time_tbl.task_name AS '{queryResultResource.TaskName}',");
@@ -777,7 +776,7 @@ namespace TaskTimeAmasser
             query.AppendLine(@"FROM (");
             query.AppendLine(@"  (");
             query.AppendLine(@"   subtasks");
-            if (filter.IsActive || filter.EnableExcludeTaskCode)
+            if (filter.EnableTasks)
             {
                 query.AppendLine(@"   LEFT OUTER JOIN tasks");
             }
@@ -789,13 +788,26 @@ namespace TaskTimeAmasser
             query.AppendLine(@"  NATURAL LEFT OUTER JOIN work_times");
             query.AppendLine(@") AS time_tbl");
             // WHERE: 条件設定
-            if (filter.IsActive || filter.EnableExcludeTaskCode)
+            if (filter.IsActive)
             {
                 var and = "";
                 query.AppendLine(@"WHERE");
+                if (filter.EnableExcludeSubTaskCode)
+                {
+                    foreach (var subcode in filter.ExcludeSubTaskCode)
+                    {
+                        query.AppendLine($@"  {and}NOT time_tbl.subtask_code GLOB '{filter.SubTaskCode}'");
+                        and = "AND ";
+                    }
+                }
+                if (filter.EnableSubTaskCode)
+                {
+                    query.AppendLine($@"  {and}NOT time_tbl.subtask_code GLOB '{filter.SubTaskCode}'");
+                    and = "AND ";
+                }
                 if (filter.EnableExcludeTaskCode)
                 {
-                    query.AppendLine($@"  NOT time_tbl.task_code GLOB '{filter.ExcludeTaskCode}'");
+                    query.AppendLine($@"  {and}NOT time_tbl.task_code GLOB '{filter.ExcludeTaskCode}'");
                     and = "AND ";
                 }
                 if (filter.EnableTaskCode)
@@ -881,7 +893,7 @@ namespace TaskTimeAmasser
             var query = new StringBuilder();
             query.AppendLine(@"SELECT");
             // フィルタをかけるときはタスク情報も表示する
-            if (filter.IsActive)
+            if (filter.EnableTasks)
             {
                 query.AppendLine($@"  time_tbl.task_code AS '{queryResultResource.TaskCode}',");
                 query.AppendLine($@"  time_tbl.task_name AS '{queryResultResource.TaskName}',");
@@ -910,7 +922,7 @@ namespace TaskTimeAmasser
             query.AppendLine(@"     LEFT OUTER JOIN ( SELECT subtask_id, subtask_alias_id, item_id, item_alias_id, task_id, task_alias_id FROM work_times ) AS w");
             query.AppendLine(@"  ) AS item_tbl");
             query.AppendLine(@"  NATURAL LEFT OUTER JOIN items NATURAL LEFT OUTER JOIN subtasks");
-            if (filter.IsActive || filter.EnableExcludeTaskCode)
+            if (filter.EnableTasks)
             {
                 query.AppendLine(@"  NATURAL LEFT OUTER JOIN tasks");
             }
@@ -920,13 +932,26 @@ namespace TaskTimeAmasser
             }
             query.AppendLine(@"  ) AS time_tbl");
             // WHERE: 条件設定
-            if (filter.IsActive || filter.EnableExcludeTaskCode)
+            if (filter.IsActive)
             {
-                query.AppendLine(@"WHERE");
                 var and = "";
+                query.AppendLine(@"WHERE");
+                if (filter.EnableExcludeSubTaskCode)
+                {
+                    foreach (var subcode in filter.ExcludeSubTaskCode)
+                    {
+                        query.AppendLine($@"  {and}NOT time_tbl.subtask_code GLOB '{filter.SubTaskCode}'");
+                        and = "AND ";
+                    }
+                }
+                if (filter.EnableSubTaskCode)
+                {
+                    query.AppendLine($@"  {and}NOT time_tbl.subtask_code GLOB '{filter.SubTaskCode}'");
+                    and = "AND ";
+                }
                 if (filter.EnableExcludeTaskCode)
                 {
-                    query.AppendLine($@"  NOT time_tbl.task_code GLOB '{filter.ExcludeTaskCode}'");
+                    query.AppendLine($@"  {and}NOT time_tbl.task_code GLOB '{filter.ExcludeTaskCode}'");
                     and = "AND ";
                 }
                 if (filter.EnableTaskCode)
@@ -997,7 +1022,7 @@ namespace TaskTimeAmasser
             query.AppendLine(@"SELECT");
             query.AppendLine($@"  person_name AS '{queryResultResource.Person}',");
             // フィルタをかけるときはタスク情報も表示する
-            if (filter.IsActive)
+            if (filter.EnableTasks)
             {
                 query.AppendLine($@"  task_code AS '{queryResultResource.TaskCode}',");
                 query.AppendLine($@"  task_name AS '{queryResultResource.TaskName}',");
@@ -1021,7 +1046,7 @@ namespace TaskTimeAmasser
             query.AppendLine(@"FROM");
             query.AppendLine(@"  work_times");
             query.AppendLine(@"  NATURAL LEFT OUTER JOIN persons");
-            if (filter.IsActive || filter.EnableExcludeTaskCode)
+            if (filter.EnableTasks)
             {
                 query.AppendLine(@"  NATURAL LEFT OUTER JOIN tasks");
             }
@@ -1030,13 +1055,26 @@ namespace TaskTimeAmasser
                 query.AppendLine(@"  NATURAL LEFT OUTER JOIN task_aliases");
             }
             // WHERE: 条件設定
-            if (filter.IsActive || filter.EnableExcludeTaskCode)
+            if (filter.IsActive)
             {
                 var and = "";
                 query.AppendLine(@"WHERE");
+                if (filter.EnableExcludeSubTaskCode)
+                {
+                    foreach (var subcode in filter.ExcludeSubTaskCode)
+                    {
+                        query.AppendLine($@"  {and}NOT subtask_code GLOB '{filter.SubTaskCode}'");
+                        and = "AND ";
+                    }
+                }
+                if (filter.EnableSubTaskCode)
+                {
+                    query.AppendLine($@"  {and}NOT subtask_code GLOB '{filter.SubTaskCode}'");
+                    and = "AND ";
+                }
                 if (filter.EnableExcludeTaskCode)
                 {
-                    query.AppendLine($@"  NOT task_code GLOB '{filter.ExcludeTaskCode}'");
+                    query.AppendLine($@"  {and}NOT task_code GLOB '{filter.ExcludeTaskCode}'");
                     and = "AND ";
                 }
                 if (filter.EnableTaskCode)
@@ -1113,7 +1151,7 @@ namespace TaskTimeAmasser
             var query = new StringBuilder();
             query.AppendLine(@"SELECT");
             // フィルタをかけるときはタスク情報も表示する
-            if (filter.IsActive)
+            if (filter.EnableTasks)
             {
                 query.AppendLine($@"  time_tbl.task_code AS '{queryResultResource.TaskCode}',");
                 query.AppendLine($@"  time_tbl.task_name AS '{queryResultResource.TaskName}',");
@@ -1134,7 +1172,7 @@ namespace TaskTimeAmasser
             query.AppendLine(@"FROM (");
             query.AppendLine(@"  (");
             query.AppendLine(@"   persons");
-            if (filter.IsActive || filter.EnableExcludeTaskCode)
+            if (filter.EnableTasks)
             {
                 query.AppendLine(@"   LEFT OUTER JOIN tasks");
             }
@@ -1146,13 +1184,26 @@ namespace TaskTimeAmasser
             query.AppendLine(@"  NATURAL LEFT OUTER JOIN work_times");
             query.AppendLine(@") AS time_tbl");
             // WHERE: 条件設定
-            if (filter.IsActive || filter.EnableExcludeTaskCode)
+            if (filter.IsActive)
             {
                 var and = "";
                 query.AppendLine(@"WHERE");
+                if (filter.EnableExcludeSubTaskCode)
+                {
+                    foreach (var subcode in filter.ExcludeSubTaskCode)
+                    {
+                        query.AppendLine($@"  {and}NOT time_tbl.subtask_code GLOB '{filter.SubTaskCode}'");
+                        and = "AND ";
+                    }
+                }
+                if (filter.EnableSubTaskCode)
+                {
+                    query.AppendLine($@"  {and}NOT time_tbl.subtask_code GLOB '{filter.SubTaskCode}'");
+                    and = "AND ";
+                }
                 if (filter.EnableExcludeTaskCode)
                 {
-                    query.AppendLine($@"  NOT time_tbl.task_code GLOB '{filter.ExcludeTaskCode}'");
+                    query.AppendLine($@"  {and}NOT time_tbl.task_code GLOB '{filter.ExcludeTaskCode}'");
                     and = "AND ";
                 }
                 if (filter.EnableTaskCode)
@@ -1330,26 +1381,38 @@ namespace TaskTimeAmasser
         public string TaskName { get; set; } = string.Empty;
         public string TaskAlias { get; set; } = string.Empty;
         public string ExcludeTaskCode { get; set; } = string.Empty;
+        // SubTaskFilter
+        public string SubTaskCode { get; set; } = string.Empty;
+        public List<string> ExcludeSubTaskCode { get; set; } = new List<string>();
 
+        // TaskFilter
         public bool IsActive { get; set; } = false;
-        public bool EnableTasks { get; set; } = false;
         public bool EnableTaskCode { get; set; } = false;
         public bool EnableTaskName { get; set; } = false;
         public bool EnableTaskAlias { get; set; } = false;
         public bool EnableExcludeTaskCode { get; set; } = false;
+        public bool EnableTasks { get; set; } = false;
+        // SubTaskFilter
+        public bool EnableSubTaskCode { get; set; } = false;
+        public bool EnableExcludeSubTaskCode { get; set; } = false;
+        public bool EnableSubTasks { get; set; } = false;
 
         public QueryFilterTask() { }
 
         public void Init()
         {
+            // TaskFilter
             EnableTaskCode = TaskCode != "<指定なし>";
-            EnableTaskName = TaskName.Length != 0;
-            EnableTaskAlias = TaskAlias.Length != 0;
-            EnableTasks = (EnableTaskCode || EnableTaskName);
+            EnableTaskName = TaskName.Length > 0;
+            EnableTaskAlias = TaskAlias.Length > 0;
+            EnableExcludeTaskCode = ExcludeTaskCode.Length > 0;
+            EnableTasks = (EnableTaskCode || EnableTaskName || EnableTaskAlias || EnableExcludeTaskCode);
+            // SubTaskFilter
+            EnableSubTaskCode = SubTaskCode.Length > 0;
+            EnableExcludeSubTaskCode = ExcludeSubTaskCode.Count > 0;
+            EnableSubTasks = (EnableSubTaskCode || EnableExcludeSubTaskCode);
             //
-            EnableExcludeTaskCode = ExcludeTaskCode.Length != 0;
-            //
-            IsActive = (EnableTaskCode || EnableTaskName || EnableTaskAlias);
+            IsActive = (EnableTaskCode || EnableTaskName || EnableTaskAlias || EnableExcludeTaskCode || EnableSubTaskCode || EnableExcludeSubTaskCode);
         }
 
     }
