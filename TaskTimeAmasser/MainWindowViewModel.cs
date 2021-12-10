@@ -590,9 +590,9 @@ namespace TaskTimeAmasser
             }
         }
 
-        private string MakeQuerySelectTaskList()
+        private QueryFilterTask MakeQueryFilterTask()
         {
-            // フィルタ作成
+            // タスクフィルタ作成
             var filter = new QueryFilterTask
             {
                 TaskCode = FilterTaskCodeSelectItem.Value,
@@ -601,6 +601,26 @@ namespace TaskTimeAmasser
                 ExcludeTaskCode = config.QueryExcludeTaskCode.Value,
             };
             filter.Init();
+            return filter;
+        }
+
+        private QueryFilterTerm MakeQueryFilterTerm()
+        {
+            // 期間フィルタ作成
+            var term = new QueryFilterTerm
+            {
+                Begin = FilterTermBegin.Value,
+                End = FilterTermEnd.Value,
+                Unit = FilterTermUnitSelectIndex.Value
+            };
+            term.Init();
+            return term;
+        }
+
+        private string MakeQuerySelectTaskList()
+        {
+            // フィルタ作成
+            var filter = MakeQueryFilterTask();
             // クエリ作成
             var query = new StringBuilder();
             query.AppendLine(@"SELECT DISTINCT");
@@ -645,14 +665,7 @@ namespace TaskTimeAmasser
 
         private string MakeQuerySelectDateRange()
         {
-            var filter = new QueryFilterTask
-            {
-                TaskCode = FilterTaskCodeSelectItem.Value,
-                TaskName = FilterTaskName.Value,
-                TaskAlias = FilterTaskAlias.Value,
-                ExcludeTaskCode = config.QueryExcludeTaskCode.Value,
-            };
-            filter.Init();
+            var filter = MakeQueryFilterTask();
             // クエリ作成
             if (!filter.IsActive)
             {
@@ -724,14 +737,7 @@ namespace TaskTimeAmasser
         private string MakeQuerySelectSubTotal()
         {
             // フィルタオブジェクト作成
-            var filter = new QueryFilterTask
-            {
-                TaskCode = FilterTaskCodeSelectItem.Value,
-                TaskName = FilterTaskName.Value,
-                TaskAlias = FilterTaskAlias.Value,
-                ExcludeTaskCode = config.QueryExcludeTaskCode.Value,
-            };
-            filter.Init();
+            var filter = MakeQueryFilterTask();
             // ダミー期間定義
             var term = new QueryFilterTerm();
             return MakeQuerySelectSubTotalImpl(filter, term);
@@ -739,21 +745,8 @@ namespace TaskTimeAmasser
 
         private string MakeQuerySelectSubTotalTerm()
         {
-            var filter = new QueryFilterTask
-            {
-                TaskCode = FilterTaskCodeSelectItem.Value,
-                TaskName = FilterTaskName.Value,
-                TaskAlias = FilterTaskAlias.Value,
-                ExcludeTaskCode = config.QueryExcludeTaskCode.Value,
-            };
-            filter.Init();
-            var term = new QueryFilterTerm
-            {
-                Begin = FilterTermBegin.Value,
-                End = FilterTermEnd.Value,
-                Unit = FilterTermUnitSelectIndex.Value
-            };
-            term.Init();
+            var filter = MakeQueryFilterTask();
+            var term = MakeQueryFilterTerm();
             return MakeQuerySelectSubTotalImpl(filter, term);
         }
         
@@ -869,14 +862,7 @@ namespace TaskTimeAmasser
 
         private string MakeQuerySelectItemTotal()
         {
-            var filter = new QueryFilterTask
-            {
-                TaskCode = FilterTaskCodeSelectItem.Value,
-                TaskName = FilterTaskName.Value,
-                TaskAlias = FilterTaskAlias.Value,
-                ExcludeTaskCode = config.QueryExcludeTaskCode.Value,
-            };
-            filter.Init();
+            var filter = MakeQueryFilterTask();
             // ダミー期間定義
             var term = new QueryFilterTerm();
             return MakeQuerySelectItemTotalImpl(filter, term);
@@ -884,21 +870,8 @@ namespace TaskTimeAmasser
 
         private string MakeQuerySelectItemTotalTerm()
         {
-            var filter = new QueryFilterTask
-            {
-                TaskCode = FilterTaskCodeSelectItem.Value,
-                TaskName = FilterTaskName.Value,
-                TaskAlias = FilterTaskAlias.Value,
-                ExcludeTaskCode = config.QueryExcludeTaskCode.Value,
-            };
-            filter.Init();
-            var term = new QueryFilterTerm
-            {
-                Begin = FilterTermBegin.Value,
-                End = FilterTermEnd.Value,
-                Unit = FilterTermUnitSelectIndex.Value
-            };
-            term.Init();
+            var filter = MakeQueryFilterTask();
+            var term = MakeQueryFilterTerm();
             return MakeQuerySelectItemTotalImpl(filter, term);
         }
 
@@ -1012,21 +985,8 @@ namespace TaskTimeAmasser
 
         private string MakeQuerySelectPersonInfoTerm()
         {
-            var filter = new QueryFilterTask
-            {
-                TaskCode = FilterTaskCodeSelectItem.Value,
-                TaskName = FilterTaskName.Value,
-                TaskAlias = FilterTaskAlias.Value,
-                ExcludeTaskCode = config.QueryExcludeTaskCode.Value,
-            };
-            filter.Init();
-            var term = new QueryFilterTerm
-            {
-                Begin = FilterTermBegin.Value,
-                End = FilterTermEnd.Value,
-                Unit = FilterTermUnitSelectIndex.Value
-            };
-            term.Init();
+            var filter = MakeQueryFilterTask();
+            var term = MakeQueryFilterTerm();
             return MakeQuerySelectPersonInfoTermImpl(filter, term);
         }
 
@@ -1134,14 +1094,7 @@ namespace TaskTimeAmasser
         private string MakeQuerySelectPersonTotal()
         {
             // フィルタオブジェクト作成
-            var filter = new QueryFilterTask
-            {
-                TaskCode = FilterTaskCodeSelectItem.Value,
-                TaskName = FilterTaskName.Value,
-                TaskAlias = FilterTaskAlias.Value,
-                ExcludeTaskCode = config.QueryExcludeTaskCode.Value,
-            };
-            filter.Init();
+            var filter = MakeQueryFilterTask();
             // ダミー期間定義
             var term = new QueryFilterTerm();
             return MakeQuerySelectPersonTotalImpl(filter, term);
@@ -1149,21 +1102,8 @@ namespace TaskTimeAmasser
 
         private string MakeQuerySelectPersonTotalTerm()
         {
-            var filter = new QueryFilterTask
-            {
-                TaskCode = FilterTaskCodeSelectItem.Value,
-                TaskName = FilterTaskName.Value,
-                TaskAlias = FilterTaskAlias.Value,
-                ExcludeTaskCode = config.QueryExcludeTaskCode.Value,
-            };
-            filter.Init();
-            var term = new QueryFilterTerm
-            {
-                Begin = FilterTermBegin.Value,
-                End = FilterTermEnd.Value,
-                Unit = FilterTermUnitSelectIndex.Value
-            };
-            term.Init();
+            var filter = MakeQueryFilterTask();
+            var term = MakeQueryFilterTerm();
             return MakeQuerySelectPersonTotalImpl(filter, term);
         }
 

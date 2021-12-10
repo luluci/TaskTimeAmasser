@@ -438,7 +438,6 @@ namespace Repository
                     {
                         subtaskAliasId = await QuerySetSubTaskAliases(trans, item);
                     }
-                    if (item.Time == 0) continue;
                     // Item登録
                     var itemId = await QueryCheckItems(trans, item);
                     if (itemId == -1)
@@ -470,6 +469,7 @@ namespace Repository
                         subtaskItemRelId = await QuerySetSubtaskItemRel(trans, subtaskId, subtaskAliasId, itemId, itemAliasId);
                     }
                     // WorkTimeは、WorkTimeがゼロでないときだけ登録する
+                    if (item.Time == 0) continue;
                     // work_time登録
                     var work_time_id = await QuerySetWorkTime(trans, item, log, personId, taskId, aliasId, subtaskId, subtaskAliasId, itemId, itemAliasId, sourceId, taskSubtaskItemRelId, taskSubtaskRelId, subtaskItemRelId);
                 }
