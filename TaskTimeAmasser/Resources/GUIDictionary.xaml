@@ -5,6 +5,7 @@
     <sys:String x:Key="GuiDispFilterTaskCode" xml:space="preserve">Filter&#xa;TaskCode</sys:String>
     <sys:String x:Key="GuiDispFilterTaskName" xml:space="preserve">Filter&#xa;TaskName</sys:String>
     <sys:String x:Key="GuiDispFilterTaskAlias" xml:space="preserve">Filter&#xa;TaskAlias</sys:String>
+    <sys:String x:Key="GuiDispFilterTaskAliasId" xml:space="preserve">Filter&#xa;TaskAliasID</sys:String>
     <sys:String x:Key="GuiDispExcludeTaskCode" xml:space="preserve">除外&#xa;TaskCode</sys:String>
     <sys:String x:Key="GuiDispTaskList">Task一覧</sys:String>
     <sys:String x:Key="GuiDispTotalSub">[集計] SubKey</sys:String>
@@ -18,6 +19,7 @@
     <sys:String x:Key="GuiDispQueryResultTaskCode">タスクコード</sys:String>
     <sys:String x:Key="GuiDispQueryResultTaskName">タスク名</sys:String>
     <sys:String x:Key="GuiDispQueryResultTaskAlias">タスクエイリアス</sys:String>
+    <sys:String x:Key="GuiDispQueryResultTaskAliasId">タスクエイリアスID</sys:String>
     <sys:String x:Key="GuiDispQueryResultSubTaskCode">サブコード</sys:String>
     <sys:String x:Key="GuiDispQueryResultItemName">アイテム名</sys:String>
     <sys:String x:Key="GuiDispQueryResultPerson">ユーザ名</sys:String>
