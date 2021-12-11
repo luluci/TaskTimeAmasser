@@ -123,7 +123,7 @@
                 <Button Command="{Binding QueryPresetGetPersonTotal}" Content="{StaticResource GuiDispTotalPerson}" HorizontalAlignment="Left" Height="27" Padding="0" Margin="10,295,0,0" VerticalAlignment="Top" Width="240"/>
                 -->
                 <Button Command="{Binding QueryPresetListExec}" Content="{StaticResource GuiDispQueryListExec}" HorizontalAlignment="Left" Height="27" Padding="0" Margin="10,273,0,0" VerticalAlignment="Top" Width="65"/>
-                <ComboBox SelectedIndex="{Binding QueryPresetListSelectedIndex.Value}" ItemsSource="{Binding QueryPresetList, Mode=OneWay}" DisplayMemberPath="Name" HorizontalAlignment="Left" Height="28" Margin="87,273,0,0" VerticalAlignment="Top" Width="163"/>
+                <ComboBox SelectedIndex="{Binding QueryPresetListSelectedIndex.Value}" ItemsSource="{Binding QueryPresetList, Mode=OneWay}" DisplayMemberPath="Name" HorizontalAlignment="Left" Height="28" Margin="87,273,0,0" Padding="5,7,0,0" VerticalAlignment="Top" Width="163"/>
                 <Grid Margin="0,345,0,0" Height="30" VerticalAlignment="Top" HorizontalAlignment="Left" Width="253">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="115"/>
@@ -152,7 +152,7 @@
                 <Button Content="{StaticResource GuiDispTermTotalPerson}" Command="{Binding QueryPresetGetPersonTotalTerm}" Height="27" Margin="10,484,0,0" Padding="0" VerticalAlignment="Top" HorizontalAlignment="Left" Width="240"/>
                 -->
                 <Button Command="{Binding QueryPresetTermListExec}" Content="{StaticResource GuiDispQueryTermListExec}" HorizontalAlignment="Left" Height="27" Padding="0" Margin="10,450,0,0" VerticalAlignment="Top" Width="80"/>
-                <ComboBox SelectedIndex="{Binding QueryPresetTermListSelectedIndex.Value}" ItemsSource="{Binding QueryPresetTermList, Mode=OneWay}" DisplayMemberPath="Name" HorizontalAlignment="Left" Height="28" Margin="102,450,0,0" VerticalAlignment="Top" Width="148"/>
+                <ComboBox SelectedIndex="{Binding QueryPresetTermListSelectedIndex.Value}" ItemsSource="{Binding QueryPresetTermList, Mode=OneWay}" DisplayMemberPath="Name" HorizontalAlignment="Left" Height="28" Margin="102,450,0,0" Padding="5,7,0,0" VerticalAlignment="Top" Width="148"/>
 
                 <Button Content="{StaticResource GuiDispPersonInfo}" Command="{Binding QueryPresetGetPersonInfoTerm}" HorizontalAlignment="Left" Height="27" Padding="0" Margin="10,520,0,0" VerticalAlignment="Top" Width="240"/>
             </Grid>
