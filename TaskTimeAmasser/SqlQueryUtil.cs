@@ -7,7 +7,7 @@ using System.Windows;
 
 namespace TaskTimeAmasser
 {
-    class QueryResultResource
+    public class QueryResultResource
     {
         public string TaskCode { get; set; } = string.Empty;
         public string TaskName { get; set; } = string.Empty;
@@ -35,7 +35,7 @@ namespace TaskTimeAmasser
         }
     }
 
-    class QueryFilterTask
+    public class QueryFilterTask
     {
         public string TaskCode { get; set; } = string.Empty;
         public string TaskName { get; set; } = string.Empty;
@@ -80,7 +80,7 @@ namespace TaskTimeAmasser
 
     }
 
-    class QueryFilterTerm
+    public class QueryFilterTerm
     {
         public DateTime Begin { get; set; }
         public DateTime End { get; set; }
