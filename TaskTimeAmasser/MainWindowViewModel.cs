@@ -94,22 +94,7 @@ namespace TaskTimeAmasser
             this.repository = repo;
 
             // ResourceDictionary
-            {
-                ResourceDictionary dic = new ResourceDictionary
-                {
-                    Source = new Uri("/TaskTimeAmasser;component/Resources/GUIDictionary.xaml", UriKind.Relative)
-                };
-                queryResultResource = new QueryResultResource
-                {
-                    TaskCode = dic["GuiDispQueryResultTaskCode"].ToString(),
-                    TaskName = dic["GuiDispQueryResultTaskName"].ToString(),
-                    TaskAlias = dic["GuiDispQueryResultTaskAlias"].ToString(),
-                    TaskAliasId = dic["GuiDispQueryResultTaskAliasId"].ToString(),
-                    SubTaskCode = dic["GuiDispQueryResultSubTaskCode"].ToString(),
-                    ItemName = dic["GuiDispQueryResultItemName"].ToString(),
-                    Person = dic["GuiDispQueryResultPerson"].ToString(),
-                };
-            }
+            queryResultResource = new QueryResultResource();
 
             // Configロード
             config.Load();
@@ -1501,17 +1486,6 @@ namespace TaskTimeAmasser
         }
     }
 
-    class QueryResultResource
-    {
-        public string TaskCode { get; set; } = string.Empty;
-        public string TaskName { get; set; } = string.Empty;
-        public string TaskAlias { get; set; } = string.Empty;
-        public string TaskAliasId { get; set; } = string.Empty;
-        public string SubTaskCode { get; set; } = string.Empty;
-        public string ItemName { get; set; } = string.Empty;
-        public string Person { get; set; } = string.Empty;
-    }
-    
     class QueryFilterTask
     {
         public string TaskCode { get; set; } = string.Empty;

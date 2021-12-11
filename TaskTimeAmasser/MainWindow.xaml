@@ -117,9 +117,10 @@
                     <TextBox Grid.Column="1" Text="{Binding ExcludeTaskCode.Value}" ToolTip="{Binding FilterToolTip.Value}" Margin="0,0,10,0" Padding="5,8,0,0" />
                 </Grid>
                 <Button Command="{Binding QueryPresetGetTaskList}" Content="{StaticResource GuiDispTaskList}" HorizontalAlignment="Left" Height="25" Padding="0" Margin="10,27,0,0" VerticalAlignment="Top" Width="240"/>
-                <Button Command="{Binding QueryPresetGetSubTotal}" Content="{StaticResource GuiDispTotalSub}" HorizontalAlignment="Left" Height="27" Padding="0" Margin="10,239,0,0" VerticalAlignment="Top" Width="240"/>
-                <Button Command="{Binding QueryPresetGetItemTotal}" Content="{StaticResource GuiDispTotalSubItem}" HorizontalAlignment="Left" Height="27" Padding="0" Margin="10,271,0,0" VerticalAlignment="Top" Width="240"/>
-                <Button Command="{Binding QueryPresetGetPersonTotal}" Content="{StaticResource GuiDispTotalPerson}" HorizontalAlignment="Left" Height="27" Padding="0" Margin="10,303,0,0" VerticalAlignment="Top" Width="240"/>
+                <Button Command="{Binding QueryPresetGetSubTotal}" Content="{StaticResource GuiDispTotalSub}" HorizontalAlignment="Left" Height="27" Padding="0" Margin="10,234,0,0" VerticalAlignment="Top" Width="240"/>
+                <Button Command="{Binding QueryPresetGetItemTotal}" Content="{StaticResource GuiDispTotalSubItem}" HorizontalAlignment="Left" Height="27" Padding="0" Margin="10,264,0,0" VerticalAlignment="Top" Width="240"/>
+                <Button Command="{Binding QueryPresetGetPersonTotal}" Content="{StaticResource GuiDispTotalPerson}" HorizontalAlignment="Left" Height="27" Padding="0" Margin="10,295,0,0" VerticalAlignment="Top" Width="240"/>
+                <ComboBox HorizontalAlignment="Left" Height="28" Margin="80,327,0,0" VerticalAlignment="Top" Width="170"/>
                 <Grid Margin="0,385,0,0" Height="30" VerticalAlignment="Top" HorizontalAlignment="Left" Width="253">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="115"/>
