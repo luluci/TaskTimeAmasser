@@ -297,8 +297,7 @@ namespace TaskTimeAmasser
                     {
                         var r = await Task.Run(async () =>
                         {
-                            var q = MakeQuerySelectSubTotal();
-                            var qr = await ExecuteQuery(q);
+                            var qr = await GetSelectSubTotal();
                             if (qr)
                             {
                                 // レコード内日時範囲反映設定が有効であれば更新する
@@ -323,8 +322,7 @@ namespace TaskTimeAmasser
                     {
                         var r = await Task.Run(async () =>
                         {
-                            var q = MakeQuerySelectItemTotal();
-                            var qr = await ExecuteQuery(q);
+                            var qr = await GetSelectItemTotal();
                             if (qr)
                             {
                                 // レコード内日時範囲反映設定が有効であれば更新する
@@ -349,8 +347,7 @@ namespace TaskTimeAmasser
                     {
                         var r = await Task.Run(async () =>
                         {
-                            var q = MakeQuerySelectPersonTotal();
-                            var qr = await ExecuteQuery(q);
+                            var qr = await GetSelectPersonTotal();
                             if (qr)
                             {
                                 // レコード内日時範囲反映設定が有効であれば更新する
@@ -387,8 +384,7 @@ namespace TaskTimeAmasser
                     {
                         var r = await Task.Run(async () =>
                         {
-                            var q = MakeQuerySelectSubTotalTerm();
-                            return await ExecuteQuery(q);
+                            return await GetSelectSubTotalTerm();
                         });
                         UpdateDbView(r, QueryResultMode.Other);
                         args.Session.Close(false);
@@ -404,8 +400,7 @@ namespace TaskTimeAmasser
                     {
                         var r = await Task.Run(async () =>
                         {
-                            var q = MakeQuerySelectItemTotalTerm();
-                            return await ExecuteQuery(q);
+                            return await GetSelectItemTotalTerm();
                         });
                         UpdateDbView(r, QueryResultMode.Other);
                         args.Session.Close(false);
@@ -421,8 +416,7 @@ namespace TaskTimeAmasser
                     {
                         var r = await Task.Run(async () =>
                         {
-                            var q = MakeQuerySelectPersonTotalTerm();
-                            return await ExecuteQuery(q);
+                            return await GetSelectPersonTotalTerm();
                         });
                         UpdateDbView(r, QueryResultMode.Other);
                         args.Session.Close(false);
@@ -438,8 +432,7 @@ namespace TaskTimeAmasser
                     {
                         var r = await Task.Run(async () =>
                         {
-                            var q = MakeQuerySelectPersonInfoTerm();
-                            return await ExecuteQuery(q);
+                            return await GetSelectPersonInfoTerm();
                         });
                         UpdateDbView(r, QueryResultMode.Other);
                         args.Session.Close(false);
@@ -670,61 +663,68 @@ namespace TaskTimeAmasser
 
 
 
-        private string MakeQuerySelectSubTotal()
+        private async Task<bool> GetSelectSubTotal()
         {
             // フィルタオブジェクト作成
             var filter = MakeQueryFilterTask();
             // ダミー期間定義
             var term = new QueryFilterTerm();
-            return SqlQuery.MakeQuerySelectSubTotal(queryResultResource, filter, term);
+            var query = SqlQuery.MakeQuerySelectSubTotal(queryResultResource, filter, term);
+            return await ExecuteQuery(query);
         }
 
-        private string MakeQuerySelectSubTotalTerm()
+        private async Task<bool> GetSelectSubTotalTerm()
         {
             var filter = MakeQueryFilterTask();
             var term = MakeQueryFilterTerm();
-            return SqlQuery.MakeQuerySelectSubTotal(queryResultResource, filter, term);
+            var query = SqlQuery.MakeQuerySelectSubTotal(queryResultResource, filter, term);
+            return await ExecuteQuery(query);
         }
         
 
-        private string MakeQuerySelectItemTotal()
+        private async Task<bool> GetSelectItemTotal()
         {
             var filter = MakeQueryFilterTask();
             // ダミー期間定義
             var term = new QueryFilterTerm();
-            return SqlQuery.MakeQuerySelectItemTotal(queryResultResource, filter, term);
+            var query = SqlQuery.MakeQuerySelectItemTotal(queryResultResource, filter, term);
+            return await ExecuteQuery(query);
         }
 
-        private string MakeQuerySelectItemTotalTerm()
+        private async Task<bool> GetSelectItemTotalTerm()
         {
             var filter = MakeQueryFilterTask();
             var term = MakeQueryFilterTerm();
-            return SqlQuery.MakeQuerySelectItemTotal(queryResultResource, filter, term);
+            var query = SqlQuery.MakeQuerySelectItemTotal(queryResultResource, filter, term);
+            return await ExecuteQuery(query);
         }
 
 
-        private string MakeQuerySelectPersonInfoTerm()
+        private async Task<bool> GetSelectPersonInfoTerm()
         {
             var filter = MakeQueryFilterTask();
             var term = MakeQueryFilterTerm();
-            return SqlQuery.MakeQuerySelectPersonInfoTerm(queryResultResource, filter, term);
+            var query = SqlQuery.MakeQuerySelectPersonInfoTerm(queryResultResource, filter, term);
+            return await ExecuteQuery(query);
         }
 
 
-        private string MakeQuerySelectPersonTotal()
+        private async Task<bool> GetSelectPersonTotal()
         {
             // フィルタオブジェクト作成
             var filter = MakeQueryFilterTask();
             // ダミー期間定義
             var term = new QueryFilterTerm();
-            return SqlQuery.MakeQuerySelectPersonTotal(queryResultResource, filter, term);
+            var query = SqlQuery.MakeQuerySelectPersonTotal(queryResultResource, filter, term);
+            return await ExecuteQuery(query);
         }
 
-        private string MakeQuerySelectPersonTotalTerm()
+        private async Task<bool> GetSelectPersonTotalTerm()
         {
             var filter = MakeQueryFilterTask();
             var term = MakeQueryFilterTerm();
-            return SqlQuery.MakeQuerySelectPersonTotal(queryResultResource, filter, term);
+            var query = SqlQuery.MakeQuerySelectPersonTotal(queryResultResource, filter, term);
+            return await ExecuteQuery(query);
         }
 
 
