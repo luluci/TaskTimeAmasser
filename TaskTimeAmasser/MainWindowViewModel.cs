@@ -41,6 +41,9 @@ namespace TaskTimeAmasser
         public ReactivePropertySlim<string> LogDirLoadText { get; set; }
         public AsyncReactiveCommand LogDirLoad { get; set; }
         // Query Preset
+        public List<QueryList> QueryPresetList { get; }
+        public ReactivePropertySlim<int> QueryPresetListSelectedIndex { get; set; }
+        public AsyncReactiveCommand QueryPresetListExec { get; }
         // Filter全検索
         public ReactiveCollection<string> FilterTaskCode { get; }
         public ReactivePropertySlim<int> FilterTaskCodeSelectIndex { get; set; }
@@ -93,6 +96,11 @@ namespace TaskTimeAmasser
             this.config = config;
             this.repository = repo;
 
+            // ResourceDictionary取得
+            ResourceDictionary dic = new ResourceDictionary
+            {
+                Source = new Uri("/TaskTimeAmasser;component/Resources/GUIDictionary.xaml", UriKind.Relative)
+            };
             // ResourceDictionary
             queryResultResource = new QueryResultResource();
 
@@ -239,6 +247,39 @@ namespace TaskTimeAmasser
                 })
                 .AddTo(Disposables);
             // Query Preset
+            // Queryリスト
+            QueryPresetList = new List<QueryList>
+            {
+                new QueryList
+                {
+                    Name = dic["GuiDispQueryListTotalSub"].ToString(),
+                    Exec = GetSelectSubTotal,
+                }
+            };
+            QueryPresetListSelectedIndex = new ReactivePropertySlim<int>(0);
+            QueryPresetListSelectedIndex
+                .AddTo(Disposables);
+            QueryPresetListExec = repository.IsConnect
+                .ToAsyncReactiveCommand()
+                .WithSubscribe(async () =>
+                {
+                    // indexチェック
+                    var idx = QueryPresetListSelectedIndex.Value;
+                    if (idx < 0) return;
+                    // query実行
+                    DialogMessage.Value = "Query Executing ...";
+                    var result = await DialogHost.Show(this.dialog, async delegate (object sender, DialogOpenedEventArgs args)
+                    {
+                        var r = await Task.Run(async () =>
+                        {
+                            return await QueryPresetList[idx].Exec();
+                        });
+                        UpdateDbView(r, QueryResultMode.TaskList);
+                        args.Session.Close(false);
+                    });
+                })
+                .AddTo(Disposables);
+            // 個別実行ボタン
             FilterTaskCode = new ReactiveCollection<string>
             {
                 "<指定なし>"
@@ -837,4 +878,10 @@ namespace TaskTimeAmasser
         }
     }
 
+    class QueryList
+    {
+        public string Name { get; set; } = string.Empty;
+        // dummyで初期化しておく
+        public Func<Task<bool>> Exec = async () => await Task.Run(() => false);
+    }
 }

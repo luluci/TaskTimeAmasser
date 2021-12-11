@@ -7,6 +7,10 @@
     <sys:String x:Key="GuiDispFilterTaskAlias" xml:space="preserve">Filter&#xa;TaskAlias</sys:String>
     <sys:String x:Key="GuiDispFilterTaskAliasId" xml:space="preserve">Filter&#xa;TaskAliasID</sys:String>
     <sys:String x:Key="GuiDispExcludeTaskCode" xml:space="preserve">除外&#xa;TaskCode</sys:String>
+
+    <sys:String x:Key="GuiDispQueryListExec">[集計]</sys:String>
+    <sys:String x:Key="GuiDispQueryListTotalSub">SubKey</sys:String>
+
     <sys:String x:Key="GuiDispTaskList">Task一覧</sys:String>
     <sys:String x:Key="GuiDispTotalSub">[集計] SubKey</sys:String>
     <sys:String x:Key="GuiDispTotalSubItem">[集計] SubKey/Item</sys:String>

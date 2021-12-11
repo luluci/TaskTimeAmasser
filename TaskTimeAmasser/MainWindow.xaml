@@ -120,7 +120,8 @@
                 <Button Command="{Binding QueryPresetGetSubTotal}" Content="{StaticResource GuiDispTotalSub}" HorizontalAlignment="Left" Height="27" Padding="0" Margin="10,234,0,0" VerticalAlignment="Top" Width="240"/>
                 <Button Command="{Binding QueryPresetGetItemTotal}" Content="{StaticResource GuiDispTotalSubItem}" HorizontalAlignment="Left" Height="27" Padding="0" Margin="10,264,0,0" VerticalAlignment="Top" Width="240"/>
                 <Button Command="{Binding QueryPresetGetPersonTotal}" Content="{StaticResource GuiDispTotalPerson}" HorizontalAlignment="Left" Height="27" Padding="0" Margin="10,295,0,0" VerticalAlignment="Top" Width="240"/>
-                <ComboBox HorizontalAlignment="Left" Height="28" Margin="80,327,0,0" VerticalAlignment="Top" Width="170"/>
+                <Button Command="{Binding QueryPresetListExec}" Content="{StaticResource GuiDispQueryListExec}" HorizontalAlignment="Left" Height="27" Padding="0" Margin="10,327,0,0" VerticalAlignment="Top" Width="65"/>
+                <ComboBox SelectedIndex="{Binding QueryPresetListSelectedIndex.Value}" ItemsSource="{Binding QueryPresetList, Mode=OneWay}" DisplayMemberPath="Name" HorizontalAlignment="Left" Height="28" Margin="87,327,0,0" VerticalAlignment="Top" Width="163"/>
                 <Grid Margin="0,385,0,0" Height="30" VerticalAlignment="Top" HorizontalAlignment="Left" Width="253">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="115"/>
