@@ -41,9 +41,13 @@ namespace TaskTimeAmasser
         public ReactivePropertySlim<string> LogDirLoadText { get; set; }
         public AsyncReactiveCommand LogDirLoad { get; set; }
         // Query Preset
+        // QueryList
         public List<QueryList> QueryPresetList { get; }
         public ReactivePropertySlim<int> QueryPresetListSelectedIndex { get; set; }
         public AsyncReactiveCommand QueryPresetListExec { get; }
+        public List<QueryList> QueryPresetTermList { get; }
+        public ReactivePropertySlim<int> QueryPresetTermListSelectedIndex { get; set; }
+        public AsyncReactiveCommand QueryPresetTermListExec { get; }
         // Filter全検索
         public ReactiveCollection<string> FilterTaskCode { get; }
         public ReactivePropertySlim<int> FilterTaskCodeSelectIndex { get; set; }
@@ -254,7 +258,35 @@ namespace TaskTimeAmasser
                 {
                     Name = dic["GuiDispQueryListTotalSub"].ToString(),
                     Exec = GetSelectSubTotal,
-                }
+                },
+                new QueryList
+                {
+                    Name = dic["GuiDispQueryListTotalSubItem"].ToString(),
+                    Exec = GetSelectItemTotal,
+                },
+                new QueryList
+                {
+                    Name = dic["GuiDispQueryListTotalPerson"].ToString(),
+                    Exec = GetSelectPersonTotal,
+                },
+            };
+            QueryPresetTermList = new List<QueryList>
+            {
+                new QueryList
+                {
+                    Name = dic["GuiDispQueryListTotalSub"].ToString(),
+                    Exec = GetSelectSubTotalTerm,
+                },
+                new QueryList
+                {
+                    Name = dic["GuiDispQueryListTotalSubItem"].ToString(),
+                    Exec = GetSelectItemTotalTerm,
+                },
+                new QueryList
+                {
+                    Name = dic["GuiDispQueryListTotalPerson"].ToString(),
+                    Exec = GetSelectPersonTotalTerm,
+                },
             };
             QueryPresetListSelectedIndex = new ReactivePropertySlim<int>(0);
             QueryPresetListSelectedIndex
@@ -273,6 +305,29 @@ namespace TaskTimeAmasser
                         var r = await Task.Run(async () =>
                         {
                             return await QueryPresetList[idx].Exec();
+                        });
+                        UpdateDbView(r, QueryResultMode.TaskList);
+                        args.Session.Close(false);
+                    });
+                })
+                .AddTo(Disposables);
+            QueryPresetTermListSelectedIndex = new ReactivePropertySlim<int>(0);
+            QueryPresetTermListSelectedIndex
+                .AddTo(Disposables);
+            QueryPresetTermListExec = repository.IsConnect
+                .ToAsyncReactiveCommand()
+                .WithSubscribe(async () =>
+                {
+                    // indexチェック
+                    var idx = QueryPresetTermListSelectedIndex.Value;
+                    if (idx < 0) return;
+                    // query実行
+                    DialogMessage.Value = "Query Executing ...";
+                    var result = await DialogHost.Show(this.dialog, async delegate (object sender, DialogOpenedEventArgs args)
+                    {
+                        var r = await Task.Run(async () =>
+                        {
+                            return await QueryPresetTermList[idx].Exec();
                         });
                         UpdateDbView(r, QueryResultMode.TaskList);
                         args.Session.Close(false);

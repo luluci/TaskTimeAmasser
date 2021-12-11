@@ -8,8 +8,13 @@
     <sys:String x:Key="GuiDispFilterTaskAliasId" xml:space="preserve">Filter&#xa;TaskAliasID</sys:String>
     <sys:String x:Key="GuiDispExcludeTaskCode" xml:space="preserve">除外&#xa;TaskCode</sys:String>
 
+    <!-- 集計PresetQueryリスト -->
     <sys:String x:Key="GuiDispQueryListExec">[集計]</sys:String>
     <sys:String x:Key="GuiDispQueryListTotalSub">SubKey</sys:String>
+    <sys:String x:Key="GuiDispQueryListTotalSubItem">SubKey/Item</sys:String>
+    <sys:String x:Key="GuiDispQueryListTotalPerson">Person</sys:String>
+    <!-- 期間集計PresetQueryリスト -->
+    <sys:String x:Key="GuiDispQueryTermListExec">[期間集計]</sys:String>
 
     <sys:String x:Key="GuiDispTaskList">Task一覧</sys:String>
     <sys:String x:Key="GuiDispTotalSub">[集計] SubKey</sys:String>
