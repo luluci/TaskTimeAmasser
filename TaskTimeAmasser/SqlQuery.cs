@@ -242,6 +242,7 @@ namespace TaskTimeAmasser
                 query.AppendLine(@"  time_tbl.task_code,");
             }
             query.AppendLine(@"  time_tbl.subtask_code");
+            // ORDER BY: ソート
             query.AppendLine(@"ORDER BY");
             if (filter.EnableTaskAlias)
             {
@@ -385,7 +386,7 @@ namespace TaskTimeAmasser
             }
             query.AppendLine(@"  time_tbl.subtask_code,");
             query.AppendLine(@"  time_tbl.item_name");
-            /*
+            // ORDER BY: ソート
             query.AppendLine(@"ORDER BY");
             if (filter.EnableTaskAlias)
             {
@@ -399,8 +400,8 @@ namespace TaskTimeAmasser
             {
                 query.AppendLine(@"  time_tbl.task_code,");
             }
-            query.AppendLine(@"  time_tbl.subtask_id");
-            */
+            query.AppendLine(@"  time_tbl.subtask_id,");
+            query.AppendLine(@"  time_tbl.item_id");
             query.Append(@";");
             return query.ToString();
         }
@@ -510,6 +511,7 @@ namespace TaskTimeAmasser
                 query.AppendLine(@"  task_code,");
             }
             query.AppendLine(@"  person_id");
+            // ORDER BY: ソート
             query.AppendLine(@"ORDER BY");
             /*
             if (filter.EnableTaskAlias)
@@ -637,6 +639,7 @@ namespace TaskTimeAmasser
                 query.AppendLine(@"  time_tbl.task_code,");
             }
             query.AppendLine(@"  time_tbl.person_name");
+            // ORDER BY: ソート
             query.AppendLine(@"ORDER BY");
             if (filter.EnableTaskAlias)
             {
