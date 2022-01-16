@@ -681,21 +681,26 @@ namespace TaskTimeAmasser
                     //var rowidx = QueryResult.Value.Rows.IndexOf(row);
                     var colidx = cell.Column.DisplayIndex;
                     //MessageBox.Show($"({rowidx}, {cell.Column.DisplayIndex})");
-                    var data = row.Field<string>(colidx);
+                    // 現状ではIDだけ取得する
+                    //var data = row.Field<string>(colidx);
+                    var data = row.Field<string>(0);
                     // 選択した内容を転送
                     switch (colidx)
                     {
                         case 0:
+                        case 1:
                             // PersonId
                             if (int.TryParse(data, out int val))
                             {
                                 AddUserIdFilter(val);
                             }
                             break;
+                            /*
                         case 1:
                             // PersonName(未実装)
-                            //FilterTaskName.Value = data;
+                            FilterTaskName.Value = data;
                             break;
+                            */
                     }
                 }
             }
