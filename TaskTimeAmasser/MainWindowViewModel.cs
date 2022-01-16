@@ -56,8 +56,11 @@ namespace TaskTimeAmasser
         public ReactivePropertySlim<string> FilterTaskAlias { get; set; }
         public ReactivePropertySlim<string> FilterTaskAliasId { get; set; }
         private Dictionary<int,int> FilterTaskAliasIdDict { get; set; } = new Dictionary<int, int>();
+        public ReactivePropertySlim<string> FilterUserId { get; set; }
+        private Dictionary<int, int> FilterUserIdDict { get; set; } = new Dictionary<int, int>();
         public ReactivePropertySlim<string> FilterToolTip { get; set; }
         public AsyncReactiveCommand QueryPresetGetTaskList { get; }
+        public AsyncReactiveCommand QueryPresetGetUserList { get; }
         public AsyncReactiveCommand QueryPresetGetSubTotal { get; }
         public AsyncReactiveCommand QueryPresetGetItemTotal { get; }
         public AsyncReactiveCommand QueryPresetGetPersonTotal { get; }
@@ -82,6 +85,7 @@ namespace TaskTimeAmasser
         {
             Notify,
             TaskList,
+            UserList,
             Other,
         }
         QueryResultMode queryResultDisp = QueryResultMode.Notify;
@@ -360,6 +364,13 @@ namespace TaskTimeAmasser
                     MakeTaskAliasIdFilter(x);
                 })
                 .AddTo(Disposables);
+            FilterUserId = new ReactivePropertySlim<string>("");
+            FilterUserId
+                .Subscribe(x =>
+                {
+                    MakeUserIdFilter(x);
+                })
+                .AddTo(Disposables);
             FilterToolTip = new ReactivePropertySlim<string>("*       任意の0文字以上の文字列\r\n?       任意の1文字\r\n[abc]  a or b or cのいずれかに一致\r\n[a-d]  aからdまでにいずれかに一致");
             FilterToolTip
                 .AddTo(Disposables);
@@ -380,6 +391,22 @@ namespace TaskTimeAmasser
                             return await GetTaskList();
                         });
                         UpdateDbView(r, QueryResultMode.TaskList);
+                        args.Session.Close(false);
+                    });
+                })
+                .AddTo(Disposables);
+            QueryPresetGetUserList = repository.IsConnect
+                .ToAsyncReactiveCommand()
+                .WithSubscribe(async () =>
+                {
+                    DialogMessage.Value = "Query Executing ...";
+                    var result = await DialogHost.Show(this.dialog, async delegate (object sender, DialogOpenedEventArgs args)
+                    {
+                        var r = await Task.Run(async () =>
+                        {
+                            return await GetUserList();
+                        });
+                        UpdateDbView(r, QueryResultMode.UserList);
                         args.Session.Close(false);
                     });
                 })
@@ -582,6 +609,9 @@ namespace TaskTimeAmasser
                 case QueryResultMode.TaskList:
                     OnDoubleClickQueryResultTaskList(e);
                     break;
+                case QueryResultMode.UserList:
+                    OnDoubleClickQueryResultUserList(e);
+                    break;
             }
         }
         private void OnDoubleClickQueryResultTaskList(MouseButtonEventArgs e)
@@ -631,6 +661,45 @@ namespace TaskTimeAmasser
                 }
             }
         }
+        private void OnDoubleClickQueryResultUserList(MouseButtonEventArgs e)
+        {
+            var elem = e.MouseDevice.DirectlyOver as FrameworkElement;
+            if (elem != null)
+            {
+                DataGridCell cell = elem.Parent as DataGridCell;
+                if (cell == null)
+                {
+                    // ParentでDataGridCellが拾えなかった時はTemplatedParentを参照
+                    // （Borderをダブルクリックした時）
+                    cell = elem.TemplatedParent as DataGridCell;
+                }
+                if (cell != null)
+                {
+                    // ここでcellの内容を処理
+                    // （cell.DataContextにバインドされたものが入っているかと思います）
+                    var row = ((DataRowView)cell.DataContext).Row;
+                    //var rowidx = QueryResult.Value.Rows.IndexOf(row);
+                    var colidx = cell.Column.DisplayIndex;
+                    //MessageBox.Show($"({rowidx}, {cell.Column.DisplayIndex})");
+                    var data = row.Field<string>(colidx);
+                    // 選択した内容を転送
+                    switch (colidx)
+                    {
+                        case 0:
+                            // PersonId
+                            if (int.TryParse(data, out int val))
+                            {
+                                AddUserIdFilter(val);
+                            }
+                            break;
+                        case 1:
+                            // PersonName(未実装)
+                            //FilterTaskName.Value = data;
+                            break;
+                    }
+                }
+            }
+        }
 
         private void UpdateQueryResultNotify(string msg)
         {
@@ -674,45 +743,92 @@ namespace TaskTimeAmasser
             return await ExecuteQuery(q);
         }
 
-        static readonly Regex reTaskAliasIdList = new Regex(@"(\d+),?", RegexOptions.Compiled);
+        private async Task<bool> GetUserList()
+        {
+            var filter = new QueryFilterTask();
+            var q = SqlQuery.MakeQuerySelectUserList(queryResultResource, filter);
+            return await ExecuteQuery(q);
+        }
+
+        static readonly Regex reIdFilterList = new Regex(@"(\d+),?", RegexOptions.Compiled);
         private bool inAddTaskAliasIdFilter = false;
         private void MakeTaskAliasIdFilter(string text)
         {
             if (!inAddTaskAliasIdFilter)
             {
-                FilterTaskAliasIdDict.Clear();
-                // テキストチェック
-                var comma = "";
-                var str = new StringBuilder();
-                var matches = reTaskAliasIdList.Matches(text);
-                for (var i = 0; i < matches.Count; i++)
-                {
-                    var m = matches[i];
-                    str.Append($"{comma}{m.Groups[1]}");
-                    comma = ",";
-                    if (int.TryParse(m.Groups[1].ToString(), out int val))
-                    {
-                        if (!FilterTaskAliasIdDict.ContainsKey(val))
-                        {
-                            FilterTaskAliasIdDict.Add(val, 1);
-                        }
-                    }
-                }
+                var str = MakeIdFilter(text, FilterTaskAliasIdDict);
                 // GUI更新
                 inAddTaskAliasIdFilter = true;
-                FilterTaskAliasId.Value = str.ToString();
+                FilterTaskAliasId.Value = str;
                 inAddTaskAliasIdFilter = false;
             }
         }
         private void AddTaskAliasIdFilter(int id)
         {
-            if (!FilterTaskAliasIdDict.ContainsKey(id))
+            var result = AddIdFilter(id, FilterTaskAliasId.Value, FilterTaskAliasIdDict);
+            if (!(result is null))
+            {
+                // GUI更新
+                inAddTaskAliasIdFilter = true;
+                FilterTaskAliasId.Value = result;
+                inAddTaskAliasIdFilter = false;
+            }
+        }
+        private bool inAddUserIdFilter = false;
+        private void MakeUserIdFilter(string text)
+        {
+            if (!inAddUserIdFilter)
+            {
+                var str = MakeIdFilter(text, FilterUserIdDict);
+                // GUI更新
+                inAddUserIdFilter = true;
+                FilterUserId.Value = str;
+                inAddUserIdFilter = false;
+            }
+        }
+        private void AddUserIdFilter(int id)
+        {
+            var result = AddIdFilter(id, FilterUserId.Value, FilterUserIdDict);
+            if (!(result is null))
+            {
+                // GUI更新
+                inAddUserIdFilter = true;
+                FilterUserId.Value = result;
+                inAddUserIdFilter = false;
+            }
+        }
+        private string MakeIdFilter(string text, Dictionary<int, int> dict)
+        {
+            // textからコンマ区切りのIdFilterを作成する
+            // Dictionary上に生成すると同時に文字列化して返す
+            dict.Clear();
+            // テキストチェック
+            var comma = "";
+            var str = new StringBuilder();
+            var matches = reIdFilterList.Matches(text);
+            for (var i = 0; i < matches.Count; i++)
+            {
+                var m = matches[i];
+                str.Append($"{comma}{m.Groups[1]}");
+                comma = ",";
+                if (int.TryParse(m.Groups[1].ToString(), out int val))
+                {
+                    if (!dict.ContainsKey(val))
+                    {
+                        dict.Add(val, 1);
+                    }
+                }
+            }
+            return str.ToString();
+        }
+        private string AddIdFilter(int id, string text, Dictionary<int, int> dict)
+        {
+            if (!dict.ContainsKey(id))
             {
                 // 新しいIDが指定された場合
                 // 辞書に登録
-                FilterTaskAliasIdDict.Add(id, 1);
+                dict.Add(id, 1);
                 // フィルタテキスト更新
-                var text = FilterTaskAliasId.Value;
                 if (text.Length == 0)
                 {
                     text = $"{id}";
@@ -721,11 +837,9 @@ namespace TaskTimeAmasser
                 {
                     text = $"{text},{id}";
                 }
-                // GUI更新
-                inAddTaskAliasIdFilter = true;
-                FilterTaskAliasId.Value = text;
-                inAddTaskAliasIdFilter = false;
+                return text;
             }
+            return null;
         }
 
         private QueryFilterTask MakeQueryFilterTask()

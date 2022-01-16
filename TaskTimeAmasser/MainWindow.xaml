@@ -116,15 +116,24 @@
                     <TextBlock Grid.Column="0" Text="{StaticResource GuiDispExcludeTaskCode}" FontFamily="Meiryo UI" TextAlignment="Center" Margin="0,0,0,0"/>
                     <TextBox Grid.Column="1" Text="{Binding ExcludeTaskCode.Value}" ToolTip="{Binding FilterToolTip.Value}" Margin="0,0,10,0" Padding="5,8,0,0" />
                 </Grid>
-                <Button Command="{Binding QueryPresetGetTaskList}" Content="{StaticResource GuiDispTaskList}" HorizontalAlignment="Left" Height="25" Padding="0" Margin="10,27,0,0" VerticalAlignment="Top" Width="240"/>
-                <Button Command="{Binding QueryPresetGetItemTotal}" Content="{StaticResource GuiDispTotalSubItem}" HorizontalAlignment="Left" Height="27" Padding="0" Margin="10,236,0,0" VerticalAlignment="Top" Width="240"/>
+                <Grid Margin="0,231,0,0" Height="30" VerticalAlignment="Top" HorizontalAlignment="Left" Width="253">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="70"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="{StaticResource GuiDispFilterUserId}" FontFamily="Meiryo UI" TextAlignment="Center" Margin="0,0,0,0"/>
+                    <TextBox Grid.Column="1" Text="{Binding FilterUserId.Value}" ToolTip=",で区切って複数指定可能" Margin="0,0,10,0" Padding="5,8,0,0" />
+                </Grid>
+                <Button Command="{Binding QueryPresetGetTaskList}" Content="{StaticResource GuiDispTaskList}" HorizontalAlignment="Left" Height="25" Padding="0" Margin="10,27,0,0" VerticalAlignment="Top" Width="89"/>
+                <Button Command="{Binding QueryPresetGetUserList}" Content="{StaticResource GuiDispUserList}" HorizontalAlignment="Left" Height="25" Padding="0" Margin="108,27,0,0" VerticalAlignment="Top" Width="84"/>
+                <Button Command="{Binding QueryPresetGetItemTotal}" Content="{StaticResource GuiDispTotalSubItem}" HorizontalAlignment="Left" Height="27" Padding="0" Margin="10,268,0,0" VerticalAlignment="Top" Width="240"/>
                 <!--
                 <Button Command="{Binding QueryPresetGetSubTotal}" Content="{StaticResource GuiDispTotalSub}" HorizontalAlignment="Left" Height="27" Padding="0" Margin="10,234,0,0" VerticalAlignment="Top" Width="240"/>
                 <Button Command="{Binding QueryPresetGetPersonTotal}" Content="{StaticResource GuiDispTotalPerson}" HorizontalAlignment="Left" Height="27" Padding="0" Margin="10,295,0,0" VerticalAlignment="Top" Width="240"/>
                 -->
-                <Button Command="{Binding QueryPresetListExec}" Content="{StaticResource GuiDispQueryListExec}" HorizontalAlignment="Left" Height="27" Padding="0" Margin="10,273,0,0" VerticalAlignment="Top" Width="65"/>
-                <ComboBox SelectedIndex="{Binding QueryPresetListSelectedIndex.Value}" ItemsSource="{Binding QueryPresetList, Mode=OneWay}" DisplayMemberPath="Name" HorizontalAlignment="Left" Height="28" Margin="87,273,0,0" Padding="5,7,0,0" VerticalAlignment="Top" Width="163"/>
-                <Grid Margin="0,353,0,0" Height="30" VerticalAlignment="Top" HorizontalAlignment="Left" Width="253">
+                <Button Command="{Binding QueryPresetListExec}" Content="{StaticResource GuiDispQueryListExec}" HorizontalAlignment="Left" Height="27" Padding="0" Margin="10,305,0,0" VerticalAlignment="Top" Width="65"/>
+                <ComboBox SelectedIndex="{Binding QueryPresetListSelectedIndex.Value}" ItemsSource="{Binding QueryPresetList, Mode=OneWay}" DisplayMemberPath="Name" HorizontalAlignment="Left" Height="28" Margin="87,305,0,0" Padding="5,7,0,0" VerticalAlignment="Top" Width="163"/>
+                <Grid Margin="0,377,0,0" Height="30" VerticalAlignment="Top" HorizontalAlignment="Left" Width="253">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="115"/>
                         <ColumnDefinition Width="*"/>
@@ -134,7 +143,7 @@
                     <TextBlock Grid.Column="1" Text="～" FontFamily="Meiryo UI" TextAlignment="Center" Margin="0,0,0,0" VerticalAlignment="Center"/>
                     <DatePicker Grid.Column="2" SelectedDate="{Binding FilterTermEnd.Value}" VerticalAlignment="Stretch" FontSize="14" Margin="5,0,10,4"/>
                 </Grid>
-                <Grid Margin="0,383,0,0" Height="30" VerticalAlignment="Top" HorizontalAlignment="Left" Width="253">
+                <Grid Margin="0,407,0,0" Height="30" VerticalAlignment="Top" HorizontalAlignment="Left" Width="253">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="90"/>
                         <ColumnDefinition Width="*"/>
@@ -145,16 +154,16 @@
                         <ComboBoxItem Content="年単位"/>
                     </ComboBox>
                 </Grid>
-                <CheckBox Content="Presetクエリ発行時のレコード日時を反映" IsChecked="{Binding ReflectFilterQueryResultDate.Value}" HorizontalAlignment="Left" Margin="10,328,0,0" VerticalAlignment="Top"/>
-                <Button Content="{StaticResource GuiDispTermTotalSubItem}" Command="{Binding QueryPresetGetItemTotalTerm}" Height="27" Margin="10,422,0,0" Padding="0" VerticalAlignment="Top" HorizontalAlignment="Left" Width="240"/>
+                <CheckBox Content="Presetクエリ発行時のレコード日時を反映" IsChecked="{Binding ReflectFilterQueryResultDate.Value}" HorizontalAlignment="Left" Margin="10,352,0,0" VerticalAlignment="Top"/>
+                <Button Content="{StaticResource GuiDispTermTotalSubItem}" Command="{Binding QueryPresetGetItemTotalTerm}" Height="27" Margin="10,446,0,0" Padding="0" VerticalAlignment="Top" HorizontalAlignment="Left" Width="240"/>
                 <!--
                 <Button Content="{StaticResource GuiDispTermTotalSub}" Command="{Binding QueryPresetGetSubTotalTerm}" Height="27" Margin="10,417,0,0" Padding="0" VerticalAlignment="Top" HorizontalAlignment="Left" Width="240"/>
                 <Button Content="{StaticResource GuiDispTermTotalPerson}" Command="{Binding QueryPresetGetPersonTotalTerm}" Height="27" Margin="10,484,0,0" Padding="0" VerticalAlignment="Top" HorizontalAlignment="Left" Width="240"/>
                 -->
-                <Button Command="{Binding QueryPresetTermListExec}" Content="{StaticResource GuiDispQueryTermListExec}" HorizontalAlignment="Left" Height="27" Padding="0" Margin="10,458,0,0" VerticalAlignment="Top" Width="80"/>
-                <ComboBox SelectedIndex="{Binding QueryPresetTermListSelectedIndex.Value}" ItemsSource="{Binding QueryPresetTermList, Mode=OneWay}" DisplayMemberPath="Name" HorizontalAlignment="Left" Height="28" Margin="102,458,0,0" Padding="5,7,0,0" VerticalAlignment="Top" Width="148"/>
+                <Button Command="{Binding QueryPresetTermListExec}" Content="{StaticResource GuiDispQueryTermListExec}" HorizontalAlignment="Left" Height="27" Padding="0" Margin="10,482,0,0" VerticalAlignment="Top" Width="80"/>
+                <ComboBox SelectedIndex="{Binding QueryPresetTermListSelectedIndex.Value}" ItemsSource="{Binding QueryPresetTermList, Mode=OneWay}" DisplayMemberPath="Name" HorizontalAlignment="Left" Height="28" Margin="102,482,0,0" Padding="5,7,0,0" VerticalAlignment="Top" Width="148"/>
 
-                <Button Content="{StaticResource GuiDispPersonInfo}" Command="{Binding QueryPresetGetPersonInfoTerm}" HorizontalAlignment="Left" Height="27" Padding="0" Margin="10,520,0,0" VerticalAlignment="Top" Width="240"/>
+                <Button Content="{StaticResource GuiDispPersonInfo}" Command="{Binding QueryPresetGetPersonInfoTerm}" HorizontalAlignment="Left" Height="27" Padding="0" Margin="10,538,0,0" VerticalAlignment="Top" Width="240"/>
             </Grid>
             <Grid Background="#FFE9FFDD" Height="215" VerticalAlignment="Bottom">
                 <TextBlock HorizontalAlignment="Left" Height="24" Margin="10,4,0,0" TextWrapping="Wrap" Text="SQL Manual" VerticalAlignment="Top" Width="227" TextDecorations="Underline" FontSize="14" FontWeight="Bold"/>

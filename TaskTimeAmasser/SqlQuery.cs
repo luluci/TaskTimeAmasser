@@ -59,6 +59,21 @@ namespace TaskTimeAmasser
             return query.ToString();
         }
 
+        static public string MakeQuerySelectUserList(QueryResultResource resource, QueryFilterTask filter)
+        {
+            // クエリ作成
+            var query = new StringBuilder();
+            query.AppendLine(@"SELECT DISTINCT");
+            query.AppendLine($@"  person_id AS '{resource.PersonId}',");
+            query.AppendLine($@"  person_name AS '{resource.Person}'");
+            query.AppendLine(@"FROM persons");
+            // ORDER BY: ソート
+            query.AppendLine(@"ORDER BY");
+            query.AppendLine(@"  person_id");
+            query.Append(@";");
+            return query.ToString();
+        }
+
         static public string MakeQuerySelectDateRange(QueryResultResource resource, QueryFilterTask filter)
         {
             // クエリ作成

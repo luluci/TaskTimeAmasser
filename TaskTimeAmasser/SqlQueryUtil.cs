@@ -16,6 +16,7 @@ namespace TaskTimeAmasser
         public string SubTaskCode { get; set; } = string.Empty;
         public string ItemName { get; set; } = string.Empty;
         public string Person { get; set; } = string.Empty;
+        public string PersonId { get; set; } = string.Empty;
 
         public QueryResultResource()
         {
@@ -32,6 +33,7 @@ namespace TaskTimeAmasser
             SubTaskCode = dic["GuiDispQueryResultSubTaskCode"].ToString();
             ItemName = dic["GuiDispQueryResultItemName"].ToString();
             Person = dic["GuiDispQueryResultPerson"].ToString();
+            PersonId = dic["GuiDispQueryResultPersonId"].ToString();
         }
     }
 
