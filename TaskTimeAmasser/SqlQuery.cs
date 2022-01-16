@@ -59,7 +59,7 @@ namespace TaskTimeAmasser
             return query.ToString();
         }
 
-        static public string MakeQuerySelectUserList(QueryResultResource resource, QueryFilterTask filter)
+        static public string MakeQuerySelectPersonList(QueryResultResource resource, QueryFilterTask filter)
         {
             // クエリ作成
             var query = new StringBuilder();

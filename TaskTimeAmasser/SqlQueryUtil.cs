@@ -47,6 +47,8 @@ namespace TaskTimeAmasser
         // SubTaskFilter
         public string SubTaskCode { get; set; } = string.Empty;
         public List<string> ExcludeSubTaskCode { get; set; } = new List<string>();
+        // PersonFilter
+        public string PersonId { get; set; } = string.Empty;
 
         // TaskFilter
         public bool IsActive { get; set; } = false;
@@ -60,6 +62,8 @@ namespace TaskTimeAmasser
         public bool EnableSubTaskCode { get; set; } = false;
         public bool EnableExcludeSubTaskCode { get; set; } = false;
         public bool EnableSubTasks { get; set; } = false;
+        // PersonFilter
+        public bool EnablePersonId { get; set; } = false;
 
         public QueryFilterTask() { }
 
@@ -76,8 +80,10 @@ namespace TaskTimeAmasser
             EnableSubTaskCode = SubTaskCode.Length > 0;
             EnableExcludeSubTaskCode = ExcludeSubTaskCode.Count > 0;
             EnableSubTasks = (EnableSubTaskCode || EnableExcludeSubTaskCode);
+            // PersonFilter
+            EnablePersonId = PersonId.Length > 0;
             //
-            IsActive = (EnableTaskCode || EnableTaskName || EnableTaskAlias || EnableTaskAliasId || EnableExcludeTaskCode || EnableSubTaskCode || EnableExcludeSubTaskCode);
+            IsActive = (EnableTaskCode || EnableTaskName || EnableTaskAlias || EnableTaskAliasId || EnableExcludeTaskCode || EnableSubTaskCode || EnableExcludeSubTaskCode || EnablePersonId);
         }
 
     }

@@ -121,11 +121,11 @@
                         <ColumnDefinition Width="70"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="{StaticResource GuiDispFilterUserId}" FontFamily="Meiryo UI" TextAlignment="Center" Margin="0,0,0,0"/>
-                    <TextBox Grid.Column="1" Text="{Binding FilterUserId.Value}" ToolTip=",で区切って複数指定可能" Margin="0,0,10,0" Padding="5,8,0,0" />
+                    <TextBlock Grid.Column="0" Text="{StaticResource GuiDispFilterPersonId}" FontFamily="Meiryo UI" TextAlignment="Center" Margin="0,0,0,0"/>
+                    <TextBox Grid.Column="1" Text="{Binding FilterPersonId.Value}" ToolTip=",で区切って複数指定可能" Margin="0,0,10,0" Padding="5,8,0,0" />
                 </Grid>
                 <Button Command="{Binding QueryPresetGetTaskList}" Content="{StaticResource GuiDispTaskList}" HorizontalAlignment="Left" Height="25" Padding="0" Margin="10,27,0,0" VerticalAlignment="Top" Width="89"/>
-                <Button Command="{Binding QueryPresetGetUserList}" Content="{StaticResource GuiDispUserList}" HorizontalAlignment="Left" Height="25" Padding="0" Margin="108,27,0,0" VerticalAlignment="Top" Width="84"/>
+                <Button Command="{Binding QueryPresetGetPersonList}" Content="{StaticResource GuiDispPersonList}" HorizontalAlignment="Left" Height="25" Padding="0" Margin="108,27,0,0" VerticalAlignment="Top" Width="84"/>
                 <Button Command="{Binding QueryPresetGetItemTotal}" Content="{StaticResource GuiDispTotalSubItem}" HorizontalAlignment="Left" Height="27" Padding="0" Margin="10,268,0,0" VerticalAlignment="Top" Width="240"/>
                 <!--
                 <Button Command="{Binding QueryPresetGetSubTotal}" Content="{StaticResource GuiDispTotalSub}" HorizontalAlignment="Left" Height="27" Padding="0" Margin="10,234,0,0" VerticalAlignment="Top" Width="240"/>

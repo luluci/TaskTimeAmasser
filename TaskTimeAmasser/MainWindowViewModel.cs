@@ -56,11 +56,11 @@ namespace TaskTimeAmasser
         public ReactivePropertySlim<string> FilterTaskAlias { get; set; }
         public ReactivePropertySlim<string> FilterTaskAliasId { get; set; }
         private Dictionary<int,int> FilterTaskAliasIdDict { get; set; } = new Dictionary<int, int>();
-        public ReactivePropertySlim<string> FilterUserId { get; set; }
-        private Dictionary<int, int> FilterUserIdDict { get; set; } = new Dictionary<int, int>();
+        public ReactivePropertySlim<string> FilterPersonId { get; set; }
+        private Dictionary<int, int> FilterPersonIdDict { get; set; } = new Dictionary<int, int>();
         public ReactivePropertySlim<string> FilterToolTip { get; set; }
         public AsyncReactiveCommand QueryPresetGetTaskList { get; }
-        public AsyncReactiveCommand QueryPresetGetUserList { get; }
+        public AsyncReactiveCommand QueryPresetGetPersonList { get; }
         public AsyncReactiveCommand QueryPresetGetSubTotal { get; }
         public AsyncReactiveCommand QueryPresetGetItemTotal { get; }
         public AsyncReactiveCommand QueryPresetGetPersonTotal { get; }
@@ -85,7 +85,7 @@ namespace TaskTimeAmasser
         {
             Notify,
             TaskList,
-            UserList,
+            PersonList,
             Other,
         }
         QueryResultMode queryResultDisp = QueryResultMode.Notify;
@@ -364,11 +364,11 @@ namespace TaskTimeAmasser
                     MakeTaskAliasIdFilter(x);
                 })
                 .AddTo(Disposables);
-            FilterUserId = new ReactivePropertySlim<string>("");
-            FilterUserId
+            FilterPersonId = new ReactivePropertySlim<string>("");
+            FilterPersonId
                 .Subscribe(x =>
                 {
-                    MakeUserIdFilter(x);
+                    MakePersonIdFilter(x);
                 })
                 .AddTo(Disposables);
             FilterToolTip = new ReactivePropertySlim<string>("*       任意の0文字以上の文字列\r\n?       任意の1文字\r\n[abc]  a or b or cのいずれかに一致\r\n[a-d]  aからdまでにいずれかに一致");
@@ -395,7 +395,7 @@ namespace TaskTimeAmasser
                     });
                 })
                 .AddTo(Disposables);
-            QueryPresetGetUserList = repository.IsConnect
+            QueryPresetGetPersonList = repository.IsConnect
                 .ToAsyncReactiveCommand()
                 .WithSubscribe(async () =>
                 {
@@ -404,9 +404,9 @@ namespace TaskTimeAmasser
                     {
                         var r = await Task.Run(async () =>
                         {
-                            return await GetUserList();
+                            return await GetPersonList();
                         });
-                        UpdateDbView(r, QueryResultMode.UserList);
+                        UpdateDbView(r, QueryResultMode.PersonList);
                         args.Session.Close(false);
                     });
                 })
@@ -609,8 +609,8 @@ namespace TaskTimeAmasser
                 case QueryResultMode.TaskList:
                     OnDoubleClickQueryResultTaskList(e);
                     break;
-                case QueryResultMode.UserList:
-                    OnDoubleClickQueryResultUserList(e);
+                case QueryResultMode.PersonList:
+                    OnDoubleClickQueryResultPersonList(e);
                     break;
             }
         }
@@ -661,7 +661,7 @@ namespace TaskTimeAmasser
                 }
             }
         }
-        private void OnDoubleClickQueryResultUserList(MouseButtonEventArgs e)
+        private void OnDoubleClickQueryResultPersonList(MouseButtonEventArgs e)
         {
             var elem = e.MouseDevice.DirectlyOver as FrameworkElement;
             if (elem != null)
@@ -692,7 +692,7 @@ namespace TaskTimeAmasser
                             // PersonId
                             if (int.TryParse(data, out int val))
                             {
-                                AddUserIdFilter(val);
+                                AddPersonIdFilter(val);
                             }
                             break;
                             /*
@@ -748,10 +748,10 @@ namespace TaskTimeAmasser
             return await ExecuteQuery(q);
         }
 
-        private async Task<bool> GetUserList()
+        private async Task<bool> GetPersonList()
         {
             var filter = new QueryFilterTask();
-            var q = SqlQuery.MakeQuerySelectUserList(queryResultResource, filter);
+            var q = SqlQuery.MakeQuerySelectPersonList(queryResultResource, filter);
             return await ExecuteQuery(q);
         }
 
@@ -779,27 +779,27 @@ namespace TaskTimeAmasser
                 inAddTaskAliasIdFilter = false;
             }
         }
-        private bool inAddUserIdFilter = false;
-        private void MakeUserIdFilter(string text)
+        private bool inAddPersonIdFilter = false;
+        private void MakePersonIdFilter(string text)
         {
-            if (!inAddUserIdFilter)
+            if (!inAddPersonIdFilter)
             {
-                var str = MakeIdFilter(text, FilterUserIdDict);
+                var str = MakeIdFilter(text, FilterPersonIdDict);
                 // GUI更新
-                inAddUserIdFilter = true;
-                FilterUserId.Value = str;
-                inAddUserIdFilter = false;
+                inAddPersonIdFilter = true;
+                FilterPersonId.Value = str;
+                inAddPersonIdFilter = false;
             }
         }
-        private void AddUserIdFilter(int id)
+        private void AddPersonIdFilter(int id)
         {
-            var result = AddIdFilter(id, FilterUserId.Value, FilterUserIdDict);
+            var result = AddIdFilter(id, FilterPersonId.Value, FilterPersonIdDict);
             if (!(result is null))
             {
                 // GUI更新
-                inAddUserIdFilter = true;
-                FilterUserId.Value = result;
-                inAddUserIdFilter = false;
+                inAddPersonIdFilter = true;
+                FilterPersonId.Value = result;
+                inAddPersonIdFilter = false;
             }
         }
         private string MakeIdFilter(string text, Dictionary<int, int> dict)
@@ -858,6 +858,7 @@ namespace TaskTimeAmasser
                 TaskAliasId = FilterTaskAliasId.Value,
                 ExcludeTaskCode = config.QueryExcludeTaskCode.Value,
                 //ExcludeSubTaskCode = new List<string> { "CodeB", "CodeF" },
+                PersonId = FilterPersonId.Value,
             };
             filter.Init();
             return filter;
