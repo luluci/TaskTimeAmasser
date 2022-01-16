@@ -22,7 +22,7 @@ namespace TaskTimeAmasser
             query.AppendLine(@"  NATURAL LEFT OUTER JOIN tasks");
             query.AppendLine(@"  NATURAL LEFT OUTER JOIN task_aliases");
             // WHERE: 条件設定
-            if (filter.EnableTasks)
+            if (filter.EnableTasks || filter.EnablePersonId)
             {
                 var and = "";
                 query.AppendLine(@"WHERE");
@@ -51,6 +51,11 @@ namespace TaskTimeAmasser
                     query.AppendLine($@"  {and}task_alias_id IN ({filter.TaskAliasId})");
                     and = "AND ";
                 }
+                if (filter.EnablePersonId)
+                {
+                    query.AppendLine($@"  {and}person_id IN ({filter.PersonId})");
+                    and = "AND ";
+                }
             }
             // ORDER BY: ソート
             query.AppendLine(@"ORDER BY");
@@ -77,7 +82,7 @@ namespace TaskTimeAmasser
         static public string MakeQuerySelectDateRange(QueryResultResource resource, QueryFilterTask filter)
         {
             // クエリ作成
-            if (!filter.EnableTasks)
+            if (!(filter.EnableTasks || filter.EnablePersonId))
             {
                 return "SELECT max(w.date) AS MAX, min(w.date) AS MIN FROM work_times w;";
             }
@@ -135,7 +140,7 @@ namespace TaskTimeAmasser
                 }
                 query.AppendLine($@"     ) AS filter_alias");
             }
-            if (filter.EnableTaskCode || filter.EnableTaskName || filter.EnableTaskAlias)
+            if (filter.EnableTaskCode || filter.EnableTaskName || filter.EnableTaskAlias || filter.EnablePersonId)
             {
                 var and = "";
                 query.AppendLine(@"   WHERE");
@@ -147,6 +152,11 @@ namespace TaskTimeAmasser
                 if (filter.EnableTaskAlias)
                 {
                     query.AppendLine($@"     {and}w.task_alias_id = filter_alias.alias_id");
+                    and = "AND ";
+                }
+                if (filter.EnablePersonId)
+                {
+                    query.AppendLine($@"     {and}w.person_id IN ({filter.PersonId})");
                     and = "AND ";
                 }
             }
@@ -194,6 +204,10 @@ namespace TaskTimeAmasser
             {
                 query.AppendLine(@"   LEFT OUTER JOIN task_aliases");
             }
+            if (filter.EnablePersonId)
+            {
+                query.AppendLine(@"   LEFT OUTER JOIN persons");
+            }
             query.AppendLine(@"  )");
             query.AppendLine(@"  NATURAL LEFT OUTER JOIN work_times");
             query.AppendLine(@") AS time_tbl");
@@ -238,6 +252,11 @@ namespace TaskTimeAmasser
                 if (filter.EnableTaskAliasId)
                 {
                     query.AppendLine($@"  {and}time_tbl.task_alias_id IN ({filter.TaskAliasId})");
+                    and = "AND ";
+                }
+                if (filter.EnablePersonId)
+                {
+                    query.AppendLine($@"  {and}time_tbl.person_id IN ({filter.PersonId})");
                     and = "AND ";
                 }
             }
@@ -323,12 +342,12 @@ namespace TaskTimeAmasser
             }
             query.AppendLine(@"FROM (");
             query.AppendLine(@"  (");
-            query.AppendLine(@"   SELECT task_id, task_alias_id, subtask_id, item_id, date, time FROM work_times");
+            query.AppendLine(@"   SELECT task_id, task_alias_id, subtask_id, item_id, date, time, person_id FROM work_times");
             query.AppendLine(@"     UNION ALL");
-            query.AppendLine(@"   SELECT DISTINCT task_id, task_alias_id, s.subtask_id, s.item_id, 0, 0");
+            query.AppendLine(@"   SELECT DISTINCT task_id, task_alias_id, s.subtask_id, s.item_id, 0, 0, person_id");
             query.AppendLine(@"   FROM");
             query.AppendLine(@"     subtask_item_rel s");
-            query.AppendLine(@"     LEFT OUTER JOIN ( SELECT subtask_id, subtask_alias_id, item_id, item_alias_id, task_id, task_alias_id FROM work_times ) AS w");
+            query.AppendLine(@"     LEFT OUTER JOIN ( SELECT subtask_id, subtask_alias_id, item_id, item_alias_id, task_id, task_alias_id, person_id FROM work_times ) AS w");
             query.AppendLine(@"  ) AS item_tbl");
             query.AppendLine(@"  NATURAL LEFT OUTER JOIN items NATURAL LEFT OUTER JOIN subtasks");
             if (filter.EnableTasks)
@@ -381,6 +400,11 @@ namespace TaskTimeAmasser
                 if (filter.EnableTaskAliasId)
                 {
                     query.AppendLine($@"  {and}time_tbl.task_alias_id IN ({filter.TaskAliasId})");
+                    and = "AND ";
+                }
+                if (filter.EnablePersonId)
+                {
+                    query.AppendLine($@"  {and}time_tbl.person_id IN ({filter.PersonId})");
                     and = "AND ";
                 }
             }
@@ -509,6 +533,11 @@ namespace TaskTimeAmasser
                     query.AppendLine($@"  {and}task_alias_id IN ({filter.TaskAliasId})");
                     and = "AND ";
                 }
+                if (filter.EnablePersonId)
+                {
+                    query.AppendLine($@"  {and}person_id IN ({filter.PersonId})");
+                    and = "AND ";
+                }
             }
             // GROUP BY: グループ定義
             query.AppendLine(@"GROUP BY");
@@ -635,6 +664,11 @@ namespace TaskTimeAmasser
                 if (filter.EnableTaskAliasId)
                 {
                     query.AppendLine($@"  {and}time_tbl.task_alias_id IN ({filter.TaskAliasId})");
+                    and = "AND ";
+                }
+                if (filter.EnablePersonId)
+                {
+                    query.AppendLine($@"  {and}time_tbl.person_id IN ({filter.PersonId})");
                     and = "AND ";
                 }
             }
